@@ -54,7 +54,7 @@ npm run dev
 |-----|--------|-------|
 | **Faz 0** | Proje kurulumu + tam veritabanı şeması + Supabase client + routing iskeleti + auth middleware | ✅ Tamam |
 | **Faz 1** | Kayıt/giriş, 3 adımlı takım & 25 oyuncu oluşturma, dashboard, kadro listesi, oyuncu profili | ✅ Tamam |
-| **Faz 2** | Lig oluşturma/katılma, AI takımları, round-robin fikstür, puan tablosu, cron | ⏳ Sırada |
+| **Faz 2** | Lig oluşturma/katılma, AI takımları, round-robin fikstür, puan tablosu, cron | ✅ Tamam |
 | **Faz 3** | Taktik sistemi + maç simülasyon motoru + maç tamamlama | ⏳ |
 | **Faz 4** | Scouting + transfer pazarı + alt yapı | ⏳ |
 | **Faz 5** | Phaser.js 2D canlı maç + Socket.io | ⏳ |
@@ -69,4 +69,13 @@ npm run dev
 - Dashboard (CR/CMP/kadro özeti), kadro sayfası (pozisyona gruplu, ortalama rating), oyuncu profil sayfası (4 kategori attribute panelleri, kendi oyuncularda tam görünüm — diğerleri gizli `?`).
 - README handoff'undaki tasarım token'larına uygun tema (renkler, Saira + IBM Plex Sans tipografi, sidebar + topbar kabuğu).
 
-Diğer ekranlar (Lig, Transfer, Scouting, Alt Yapı, Taktik, Maç, CMP) ilgili fazda doldurulmak üzere iskelet empty-state olarak mevcuttur.
+### Tamamlanan Özellikler (Faz 2)
+
+- **Lig oluşturma** (`/api/leagues/create`): lig adı, 2 maç günü, saat, benzersiz 8 karakterli davet kodu; kurucunun takımı otomatik eklenir.
+- **Lige katılma** (`/api/leagues/join`): davet kodu ile katılım; 12 insan takımına ulaşınca otomatik başlar.
+- **Ligi başlatma** (`/api/leagues/start`): kurucu eksik slotları AI takımlarıyla doldurur (her biri 25 oyunculu, attribute 8-14), fikstür üretilir, `status='active'`.
+- **Round-robin fikstür** (`lib/schedule-generator.ts`): 12 takım çift devreli = 22 tur / 132 maç, haftada tam 2 maç, 11 hafta. Maçlar lig maç günleri + saatine bağlanır.
+- **Lig detay sayfası**: tam puan tablosu (O/G/B/M/AG/YG/AV/P), kendi takım vurgusu, terfi (1-3) & küme düşme bölgeleri, haftalara gruplu fikstür.
+- **Cron** (`/api/cron/trigger-matches` + `vercel.json`): her 15 dk vadesi gelen maçları tespit eder (motor Faz 3'te bağlanacak).
+
+Diğer ekranlar (Transfer, Scouting, Alt Yapı, Taktik, Maç, CMP) ilgili fazda doldurulmak üzere iskelet empty-state olarak mevcuttur.
