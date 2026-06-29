@@ -24,6 +24,11 @@ export function teamBadge(name: string): string {
     .toUpperCase();
 }
 
+// Hex rengi Phaser sayısal renge çevirir (ör. "#3B82F6" -> 0x3B82F6)
+export function hexToNumber(hex: string): number {
+  return parseInt(hex.replace("#", ""), 16) || 0xffffff;
+}
+
 // Rastgele davet kodu (8 karakter, okunabilir)
 export function generateInviteCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
