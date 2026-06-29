@@ -1,13 +1,18 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
+// Env yoksa build/runtime çökmesin diye güvenli yer tutucular.
+const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
+const SUPA_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-anon-key";
+const SUPA_SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY || "placeholder-service-key";
+
 // Sunucu bileşeni / route handler Supabase istemcisi
 export function createClient() {
   const cookieStore = cookies();
 
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    SUPA_URL,
+    SUPA_ANON,
     {
       cookies: {
         getAll() {
@@ -30,8 +35,8 @@ export function createClient() {
 // Service role istemcisi — RLS'yi bypass eden sunucu-içi işlemler için (cron, oyuncu üretimi vb.)
 export function createServiceClient() {
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    SUPA_URL,
+    SUPA_SERVICE,
     {
       cookies: { getAll: () => [], setAll: () => {} },
     }
