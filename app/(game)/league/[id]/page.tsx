@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
 import { getGameContext } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import PageTopBar from "@/components/PageTopBar";
@@ -152,8 +153,8 @@ export default async function LeagueDetailPage({ params }: { params: { id: strin
                         const finished = m.status === "finished";
                         const homeWin = finished && m.home_score > m.away_score;
                         const awayWin = finished && m.away_score > m.home_score;
-                        return (
-                          <div key={m.id} className="grid grid-cols-[1fr_auto_1fr] gap-2 items-center px-3 py-2 border-b border-border-soft last:border-0 text-sm">
+                        const Row = (
+                          <div className={cn("grid grid-cols-[1fr_auto_1fr] gap-2 items-center px-3 py-2 border-b border-border-soft last:border-0 text-sm", finished && "hover:bg-panel-inset/50")}>
                             <span className={cn("text-right truncate", homeWin && "text-emerald font-semibold")}>{teamName[m.home_team_id] ?? "—"}</span>
                             <span className="px-2 py-0.5 rounded bg-panel-inset text-xs font-display font-bold min-w-[48px] text-center">
                               {finished ? `${m.home_score}-${m.away_score}` : new Date(m.scheduled_at).toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit" })}
@@ -161,6 +162,9 @@ export default async function LeagueDetailPage({ params }: { params: { id: strin
                             <span className={cn("truncate", awayWin && "text-emerald font-semibold")}>{teamName[m.away_team_id] ?? "—"}</span>
                           </div>
                         );
+                        return finished
+                          ? <Link key={m.id} href={`/match/${m.id}/result`}>{Row}</Link>
+                          : <div key={m.id}>{Row}</div>;
                       })}
                     </div>
                   </div>
