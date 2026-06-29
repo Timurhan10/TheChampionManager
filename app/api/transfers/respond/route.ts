@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { notify } from "@/lib/notifications";
 
 // Satıcı gelen teklifi kabul/red eder. Kabulde oyuncu + CR el değiştirir.
 export async function POST(req: Request) {
@@ -19,8 +20,14 @@ export async function POST(req: Request) {
   if (transfer.from_team_id !== seller.id) return NextResponse.json({ error: "Bu teklif sana ait değil." }, { status: 403 });
   if (transfer.status !== "pending") return NextResponse.json({ error: "Teklif zaten yanıtlanmış." }, { status: 400 });
 
+  // Oyuncu adı (bildirim için)
+  const { data: playerRow } = await svc.from("players").select("name").eq("id", transfer.player_id).maybeSingle();
+  const playerName = playerRow?.name ?? "Oyuncu";
+
   if (body.action === "reject") {
     await svc.from("transfers").update({ status: "rejected", resolved_at: new Date().toISOString() }).eq("id", transfer.id);
+    const { data: bt } = await svc.from("teams").select("user_id").eq("id", transfer.to_team_id).maybeSingle();
+    if (bt?.user_id) await notify(svc, bt.user_id, "transfer_result", `Teklif reddedildi: ${playerName}`, undefined);
     return NextResponse.json({ ok: true });
   }
 
@@ -48,6 +55,9 @@ export async function POST(req: Request) {
   // Aynı oyuncuya gelen diğer bekleyen teklifleri iptal et
   await svc.from("transfers").update({ status: "cancelled", resolved_at: new Date().toISOString() })
     .eq("player_id", transfer.player_id).eq("status", "pending");
+
+  await notify(svc, buyerTeam.user_id, "transfer_result", `Transfer tamamlandı: ${playerName}`,
+    `${transfer.offer_amount.toLocaleString("tr-TR")} CR karşılığında kadrona katıldı.`);
 
   return NextResponse.json({ ok: true });
 }

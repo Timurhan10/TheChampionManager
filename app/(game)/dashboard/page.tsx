@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getGameContext } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import PageTopBar from "@/components/PageTopBar";
+import NotificationsPanel, { type NotificationItem } from "@/components/NotificationsPanel";
 import { formatNumber } from "@/lib/utils";
 
 export default async function DashboardPage() {
@@ -16,6 +17,12 @@ export default async function DashboardPage() {
     .from("players")
     .select("id", { count: "exact", head: true })
     .eq("team_id", team.id);
+
+  const { data: notifications } = await supabase
+    .from("notifications")
+    .select("id, type, title, body, is_read, created_at")
+    .order("created_at", { ascending: false })
+    .limit(12);
 
   return (
     <>
@@ -87,6 +94,11 @@ export default async function DashboardPage() {
               <div className="text-xs text-text-muted">{q.desc}</div>
             </Link>
           ))}
+        </div>
+
+        {/* Bildirimler */}
+        <div className="mt-4">
+          <NotificationsPanel items={(notifications ?? []) as NotificationItem[]} />
         </div>
       </div>
     </>

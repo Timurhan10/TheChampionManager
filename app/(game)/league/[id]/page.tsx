@@ -4,6 +4,7 @@ import { getGameContext } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import PageTopBar from "@/components/PageTopBar";
 import StartLeagueButton from "@/components/StartLeagueButton";
+import SeasonEndButton from "@/components/SeasonEndButton";
 import { LEAGUE_SIZE } from "@/lib/constants";
 import { teamBadge } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -68,6 +69,9 @@ export default async function LeagueDetailPage({ params }: { params: { id: strin
   const weeks = Object.keys(byWeek).map(Number).sort((a, b) => a - b);
 
   const isCreator = league.creator_id === team.user_id;
+  const totalMatches = (matchRows ?? []).length;
+  const finishedMatches = (matchRows ?? []).filter((m: any) => m.status === "finished").length;
+  const allFinished = totalMatches > 0 && finishedMatches === totalMatches;
 
   return (
     <>
@@ -83,6 +87,12 @@ export default async function LeagueDetailPage({ params }: { params: { id: strin
                 <span className="ml-2 text-text-faint">Davet kodu: <span className="font-display tracking-wider text-text-2">{league.invite_code}</span></span>
               </div>
             )}
+          </div>
+        )}
+
+        {league.status === "active" && isCreator && (
+          <div className="mb-5">
+            <SeasonEndButton leagueId={league.id} allFinished={allFinished} />
           </div>
         )}
 
