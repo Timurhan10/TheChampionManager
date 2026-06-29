@@ -58,7 +58,7 @@ npm run dev
 | **Faz 3** | Taktik sistemi + maç simülasyon motoru + maç tamamlama | ✅ Tamam |
 | **Faz 4** | Scouting + transfer pazarı + alt yapı | ✅ Tamam |
 | **Faz 5** | Phaser.js 2D canlı maç + Socket.io | ✅ Tamam |
-| **Faz 6** | CMP mağazası + sezon sonu + iyzico abonelik + bildirimler | ⏳ |
+| **Faz 6** | CMP mağazası + sezon sonu + iyzico abonelik + bildirimler | ✅ Tamam |
 
 ### Tamamlanan Özellikler (Faz 0–1)
 
@@ -106,4 +106,18 @@ npm run dev
 - **Frontend (Vercel):** Repo kökünü deploy et; `.env.local.example`'daki değişkenleri Vercel env olarak ekle. `vercel.json` cron'ları otomatik kurulur.
 - **Socket sunucusu (Railway):** `services/socket-server` klasörünü/Dockerfile'ı kullan; `EMIT_SECRET` + `CORS_ORIGIN` ayarla; public URL'i frontend'de `NEXT_PUBLIC_SOCKET_URL` yap.
 
-CMP Mağazası ekranı (Faz 6) ilgili fazda doldurulmak üzere iskelet empty-state olarak mevcuttur.
+### Tamamlanan Özellikler (Faz 6)
+
+- **CMP Mağazası** (`/cmp-shop` + `/api/cmp-shop/purchase`): Bronz/Gümüş/Altın tier ürünleri, bakiye banner'ı, yetersiz bakiyede kilitli görünüm ("X CMP eksik"), geri-alınamaz **onay modalı**, satın alma geçmişi. Ödül tipleri: CR bonusu, genç/elite/efsane/veteran oyuncu üretimi, scout seviyesi yükseltme, takım antrenman bonusu.
+- **Sezon Sonu** (`/api/seasons/end` + lig sayfasında kurucu butonu): tüm maçlar bitince CMP dağıtımı (şampiyon +500, 2. +250, 3. +100, yenilgisiz +300), her menajere +100.000 CR sezon bonusu, aktif alt yapılara genç üretimi, puan tablosu sıfırlama, yeni sezon fikstürü, `season_number +1`.
+- **Bildirimler** (`notifications` tablosu + `/api/notifications/mark-read`): transfer teklifi/sonucu, scout tamamlandı, sezon sonu, CMP satın alma olaylarında bildirim; dashboard'da panel + okundu işaretleme.
+- **iyzico Abonelik** (`/api/payment/subscribe`): yapılandırma-bilinçli iskelet — anahtarlar yoksa net "yapılandırılmamış" yanıtı; gerçek checkout akışı için bağlanma noktası hazır.
+- **Migration 0003**: CMP ürün seed'i + `notifications` tablosu (RLS ile). Alternatif: `scripts/seed-cmp-shop.ts`.
+
+---
+
+## 🎉 Tüm Fazlar Tamamlandı
+
+Faz 0-6 bitti. Oyun döngüsü uçtan uca işliyor: **kayıt → takım & 25 oyuncu kur → lig oluştur/katıl → taktik kur → maçlar simüle olur (2D izlenebilir) → puan tablosu + CR/CMP güncellenir → scout/transfer/alt yapı ile kadro geliştir → CMP mağazasından ödül al → sezon sonu yeni sezon başlar.**
+
+Production için: Supabase'de 3 migration'ı sırayla çalıştır, `.env.local`'i doldur, frontend'i Vercel'e, socket sunucusunu Railway'e deploy et.

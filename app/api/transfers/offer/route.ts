@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { notify } from "@/lib/notifications";
 
 // Serbest ajan ise direkt satın alım; başka takıma aitse teklif oluşturur.
 export async function POST(req: Request) {
@@ -45,6 +46,13 @@ export async function POST(req: Request) {
     offer_amount: amount, status: "pending",
   });
   if (insErr) return NextResponse.json({ error: insErr.message }, { status: 400 });
+
+  // Satıcıya bildirim
+  const { data: sellerTeam } = await svc.from("teams").select("user_id").eq("id", player.team_id).maybeSingle();
+  if (sellerTeam?.user_id) {
+    await notify(svc, sellerTeam.user_id, "transfer_offer", `${player.name} için teklif geldi`,
+      `${amount.toLocaleString("tr-TR")} CR teklif edildi.`);
+  }
 
   return NextResponse.json({ ok: true, purchased: false });
 }
