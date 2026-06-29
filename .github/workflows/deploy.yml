@@ -1,0 +1,43 @@
+name: Deploy to Vercel
+
+# Elle (workflow_dispatch) tetiklenir. GitHub runner Vercel'e çıkabildiği için
+# deploy buradan yapılır. Gerekli secret'lar: VERCEL_TOKEN, SUPA_URL, SUPA_ANON, SUPA_SERVICE
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Vercel CLI
+        run: npm i -g vercel@latest
+
+      - name: Link (or create) Vercel project
+        run: vercel link --yes --project champion-manager --token "$VERCEL_TOKEN"
+
+      - name: Set environment variables
+        run: |
+          set_env() {
+            vercel env rm "$1" production --yes --token "$VERCEL_TOKEN" >/dev/null 2>&1 || true
+            printf '%s' "$2" | vercel env add "$1" production --token "$VERCEL_TOKEN"
+          }
+          set_env NEXT_PUBLIC_SUPABASE_URL "${{ secrets.SUPA_URL }}"
+          set_env NEXT_PUBLIC_SUPABASE_ANON_KEY "${{ secrets.SUPA_ANON }}"
+          set_env SUPABASE_SERVICE_ROLE_KEY "${{ secrets.SUPA_SERVICE }}"
+
+      - name: Build & deploy (production)
+        run: |
+          vercel pull --yes --environment=production --token "$VERCEL_TOKEN"
+          vercel build --prod --token "$VERCEL_TOKEN"
+          URL=$(vercel deploy --prebuilt --prod --token "$VERCEL_TOKEN")
+          echo "## 🎉 Canlı link" >> "$GITHUB_STEP_SUMMARY"
+          echo "$URL" >> "$GITHUB_STEP_SUMMARY"
+          echo "DEPLOYED_URL=$URL"
