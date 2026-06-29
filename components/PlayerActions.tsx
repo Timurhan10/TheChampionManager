@@ -1,0 +1,92 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+
+export default function PlayerActions({
+  playerId, isOwn, forSale, askingPrice, valueCr, isFreeAgent,
+}: {
+  playerId: string;
+  isOwn: boolean;
+  forSale: boolean;
+  askingPrice: number | null;
+  valueCr: number;
+  sellerTeamId: string | null;
+  isFreeAgent: boolean;
+}) {
+  const router = useRouter();
+  const [loading, setLoading] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const [price, setPrice] = useState<number>(askingPrice ?? valueCr);
+  const [offer, setOffer] = useState<number>(askingPrice ?? valueCr);
+
+  async function call(key: string, url: string, payload: any) {
+    setLoading(key); setMsg(null);
+    try {
+      const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      router.refresh();
+      return data;
+    } catch (e: any) { setMsg({ text: e.message, ok: false }); return null; }
+    finally { setLoading(null); }
+  }
+
+  if (isOwn) {
+    return (
+      <div className="space-y-2">
+        {forSale ? (
+          <>
+            <div className="text-xs text-amber text-center">Satışta · {askingPrice?.toLocaleString("tr-TR")} CR</div>
+            <button onClick={async () => { if (await call("unlist", "/api/players/list-for-sale", { playerId, forSale: false })) setMsg({ text: "Satıştan kaldırıldı.", ok: true }); }}
+              disabled={loading === "unlist"}
+              className="w-full border border-danger text-danger font-semibold py-2.5 rounded-lg hover:bg-danger/10 text-sm disabled:opacity-50">
+              Satıştan Kaldır
+            </button>
+          </>
+        ) : (
+          <>
+            <input type="number" value={price} onChange={(e) => setPrice(Number(e.target.value))}
+              className="w-full bg-panel-inset border border-border-cm rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald" />
+            <button onClick={async () => { if (await call("list", "/api/players/list-for-sale", { playerId, forSale: true, askingPrice: price })) setMsg({ text: "Satışa çıkarıldı.", ok: true }); }}
+              disabled={loading === "list"}
+              className="w-full bg-emerald text-emerald-ink font-semibold py-2.5 rounded-lg hover:bg-emerald-bright text-sm disabled:opacity-50">
+              Transfer Pazarına Çıkar
+            </button>
+          </>
+        )}
+        {msg && <p className={`text-xs ${msg.ok ? "text-emerald-bright" : "text-danger"}`}>{msg.text}</p>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {isFreeAgent ? (
+        <button onClick={async () => { if (await call("buy", "/api/transfers/offer", { playerId })) setMsg({ text: "Oyuncu alındı!", ok: true }); }}
+          disabled={loading === "buy"}
+          className="w-full bg-emerald text-emerald-ink font-semibold py-2.5 rounded-lg hover:bg-emerald-bright text-sm disabled:opacity-50">
+          Satın Al ({(askingPrice ?? valueCr).toLocaleString("tr-TR")} CR)
+        </button>
+      ) : (
+        <>
+          <input type="number" value={offer} onChange={(e) => setOffer(Number(e.target.value))}
+            className="w-full bg-panel-inset border border-border-cm rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald" placeholder="Teklif (CR)" />
+          <button onClick={async () => { const d = await call("offer", "/api/transfers/offer", { playerId, amount: offer }); if (d) setMsg({ text: "Teklif gönderildi.", ok: true }); }}
+            disabled={loading === "offer"}
+            className="w-full bg-emerald text-emerald-ink font-semibold py-2.5 rounded-lg hover:bg-emerald-bright text-sm disabled:opacity-50">
+            Transfer Teklifi Ver
+          </button>
+        </>
+      )}
+      <button onClick={async () => { if (await call("scout", "/api/scouting/start", { playerId, level: "basic" })) setMsg({ text: "Temel scout tamamlandı! Özellikler açıldı.", ok: true }); }}
+        disabled={loading === "scout"}
+        className="w-full border border-blue-cm text-blue-cm-bright font-semibold py-2.5 rounded-lg hover:bg-blue-cm/10 text-sm disabled:opacity-50">
+        Hızlı Scout (Temel · 500 CR)
+      </button>
+      <Link href="/scouting" className="block text-center text-xs text-text-muted hover:text-text-cm pt-1">Detaylı scout için Scouting Merkezi →</Link>
+      {msg && <p className={`text-xs ${msg.ok ? "text-emerald-bright" : "text-danger"}`}>{msg.text}</p>}
+    </div>
+  );
+}
