@@ -56,7 +56,7 @@ npm run dev
 | **Faz 1** | Kayıt/giriş, 3 adımlı takım & 25 oyuncu oluşturma, dashboard, kadro listesi, oyuncu profili | ✅ Tamam |
 | **Faz 2** | Lig oluşturma/katılma, AI takımları, round-robin fikstür, puan tablosu, cron | ✅ Tamam |
 | **Faz 3** | Taktik sistemi + maç simülasyon motoru + maç tamamlama | ✅ Tamam |
-| **Faz 4** | Scouting + transfer pazarı + alt yapı | ⏳ |
+| **Faz 4** | Scouting + transfer pazarı + alt yapı | ✅ Tamam |
 | **Faz 5** | Phaser.js 2D canlı maç + Socket.io | ⏳ |
 | **Faz 6** | CMP mağazası + sezon sonu + iyzico abonelik + bildirimler | ⏳ |
 
@@ -87,4 +87,12 @@ npm run dev
 - **Cron entegrasyonu**: `/api/cron/trigger-matches` artık vadesi gelen maçları gerçekten simüle edip tamamlıyor.
 - **Maç sonucu sayfası** (`/match/[id]/result`): skor, MotM, dakika-dakika olay feed'i (GOL/SK/KRT/DEĞ/İY/MS), karşılaştırmalı istatistik barları. Lig fikstüründe biten maçlar buraya linkli.
 
-Diğer ekranlar (Transfer, Scouting, Alt Yapı, Canlı 2D Maç, CMP) ilgili fazda doldurulmak üzere iskelet empty-state olarak mevcuttur.
+### Tamamlanan Özellikler (Faz 4)
+
+- **Scouting** (`/scouting` + `/api/scouting/*`): Temel (500 CR, anlık) / Detaylı (2.000 CR, 12 saat) / Tam (5.000 CR, 48 saat) paketleri; açılan özellik sayısı pakete + scout seviyesine bağlı; oyuncu arama, aktif görevler, tamamlanan raporlar; scout seviyesi yükseltme (30.000 CR, max 3). Oyuncu profilinde **kısmi açığa çıkarma** (scout edilen özellikler değerleriyle, diğerleri `?`).
+- **Transfer Pazarı** (`/transfer-market` + `/api/transfers/*`, `/api/players/list-for-sale`): satıştaki oyuncular + serbest ajanlar listesi, scout durumuna göre rating görünürlüğü; oyuncu profilinden satışa çıkarma/kaldırma, teklif verme, serbest ajanı direkt satın alma; gelen tekliflerde kabul/red (oyuncu + CR el değiştirir, diğer teklifler iptal olur).
+- **Alt Yapı** (`/youth-academy` + `/api/youth-academy/*`): aktif/pasif toggle (haftalık 1.000 CR), sezon sonu genç oyuncu üretimi (1-3 oyuncu, 16-19 yaş, yüksek potansiyel, gizli özellikler), akademi oyuncu listesi.
+- **Cron**: `/api/scouting/complete` (15 dk) bekleyen scout raporlarını tamamlar.
+- **Migration 0002**: `teams.scout_level` kolonu + indeksler.
+
+Diğer ekranlar (Canlı 2D Maç → Faz 5, CMP Mağazası → Faz 6) ilgili fazda doldurulmak üzere iskelet empty-state olarak mevcuttur.

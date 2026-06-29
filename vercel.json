@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/trigger-matches",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/scouting/complete",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

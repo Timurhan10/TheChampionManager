@@ -1,8 +1,9 @@
 import { notFound, redirect } from "next/navigation";
-import { getGameContext } from "@/lib/data";
+import { getGameContext, getRevealedKeys } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import PageTopBar from "@/components/PageTopBar";
 import AttributeBar from "@/components/AttributeBar";
+import PlayerActions from "@/components/PlayerActions";
 import { averageRating } from "@/lib/player-generator";
 import {
   CATEGORY_ATTRS,
@@ -11,7 +12,10 @@ import {
   POSITION_COLORS,
   POSITION_LABELS,
   ratingColor,
+  ALL_OUTFIELD_ATTRS,
+  GOALKEEPING_ATTRS,
   type AttributeCategory,
+  type AttributeKey,
 } from "@/lib/attributes";
 import { formatCR } from "@/lib/utils";
 import type { Player } from "@/types/game";
@@ -27,8 +31,19 @@ export default async function PlayerProfilePage({ params }: { params: { id: stri
   const player = data as Player;
   const isOwn = player.team_id === team.id;
 
-  // Faz 1: kendi oyuncularında tüm stat görünür, başkasınınkinde gizli (scouting Faz 4'te açar)
-  const revealAll = isOwn;
+  // Scouting ile açılan attribute'lar (kendi oyuncusu değilse)
+  let revealedSet: Set<string> | null = null; // null = hepsi açık
+  if (!isOwn) {
+    const map = await getRevealedKeys(supabase, team.id, [player.id]);
+    revealedSet = map.get(player.id) ?? new Set<string>();
+  }
+
+  const relevantAttrs: AttributeKey[] = player.position === "GK"
+    ? [...ALL_OUTFIELD_ATTRS, ...GOALKEEPING_ATTRS]
+    : [...ALL_OUTFIELD_ATTRS];
+  const revealedCount = revealedSet ? revealedSet.size : relevantAttrs.length;
+  const fullyKnown = isOwn || revealedCount >= relevantAttrs.length;
+  const anyScouted = isOwn || revealedCount > 0;
 
   const rating = averageRating(player);
   const posColor = POSITION_COLORS[player.position];
@@ -61,8 +76,8 @@ export default async function PlayerProfilePage({ params }: { params: { id: stri
           </div>
           <div className="text-right">
             <div className="section-label mb-1">Ort. Rating</div>
-            <div className="font-display font-extrabold text-4xl" style={{ color: revealAll ? ratingColor(rating) : "#475A73" }}>
-              {revealAll ? rating : "?"}
+            <div className="font-display font-extrabold text-4xl" style={{ color: fullyKnown ? ratingColor(rating) : "#475A73" }}>
+              {fullyKnown ? rating : "?"}
             </div>
           </div>
         </div>
@@ -70,7 +85,7 @@ export default async function PlayerProfilePage({ params }: { params: { id: stri
         <div className="grid grid-cols-[1fr_1fr_1fr_268px] gap-4">
           {/* Attribute panelleri */}
           {categories.filter((cat) => cat !== "goalkeeping" || player.position === "GK").slice(0, 3).map((cat) => (
-            <AttributePanel key={cat} category={cat} player={player} reveal={revealAll} />
+            <AttributePanel key={cat} category={cat} player={player} revealedKeys={revealedSet} />
           ))}
 
           {/* Sağ panel */}
@@ -78,14 +93,14 @@ export default async function PlayerProfilePage({ params }: { params: { id: stri
             <div className="bg-panel border border-border-cm rounded-card p-5 shadow-card">
               <div className="section-label mb-1">Piyasa Değeri</div>
               <div className="font-display font-extrabold text-3xl text-emerald">
-                {revealAll ? formatCR(player.value_cr) : "? CR"}
+                {anyScouted ? formatCR(player.value_cr) : "? CR"}
               </div>
             </div>
             <div className="bg-panel border border-border-cm rounded-card p-5 shadow-card">
               <div className="section-label mb-2">Potansiyel</div>
               <div className="flex gap-1">
                 {Array.from({ length: 5 }).map((_, i) => {
-                  const filled = revealAll && player.potential != null && i < Math.round(player.potential / 4);
+                  const filled = fullyKnown && player.potential != null && i < Math.round(player.potential / 4);
                   return (
                     <svg key={i} width="20" height="20" viewBox="0 0 24 24" fill={filled ? "#F59E0B" : "none"} stroke={filled ? "#F59E0B" : "#475A73"} strokeWidth="2">
                       <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
@@ -93,20 +108,22 @@ export default async function PlayerProfilePage({ params }: { params: { id: stri
                   );
                 })}
               </div>
-              {!revealAll && <p className="text-xs text-text-faint mt-2">Scout edilince açılır</p>}
+              {!isOwn && (
+                <p className="text-xs text-text-faint mt-2">
+                  Scout durumu: {revealedCount}/{relevantAttrs.length} özellik
+                </p>
+              )}
             </div>
-            {isOwn && (
-              <div className="space-y-2">
-                <button className="w-full bg-emerald text-emerald-ink font-semibold py-2.5 rounded-lg hover:bg-emerald-bright text-sm">Transfer Pazarına Çıkar</button>
-                <button className="w-full border border-amber text-amber font-semibold py-2.5 rounded-lg hover:bg-amber/10 text-sm">Antrenman Ata</button>
-              </div>
-            )}
-            {!isOwn && (
-              <div className="space-y-2">
-                <button className="w-full bg-emerald text-emerald-ink font-semibold py-2.5 rounded-lg hover:bg-emerald-bright text-sm">Transfer Teklifi Ver</button>
-                <button className="w-full border border-blue-cm text-blue-cm-bright font-semibold py-2.5 rounded-lg hover:bg-blue-cm/10 text-sm">Scout Et</button>
-              </div>
-            )}
+
+            <PlayerActions
+              playerId={player.id}
+              isOwn={isOwn}
+              forSale={player.for_sale}
+              askingPrice={player.asking_price}
+              valueCr={player.value_cr}
+              sellerTeamId={player.team_id}
+              isFreeAgent={player.team_id == null}
+            />
           </div>
         </div>
       </div>
@@ -117,24 +134,27 @@ export default async function PlayerProfilePage({ params }: { params: { id: stri
 function AttributePanel({
   category,
   player,
-  reveal,
+  revealedKeys,
 }: {
   category: AttributeCategory;
   player: Player;
-  reveal: boolean;
+  revealedKeys: Set<string> | null; // null = hepsi açık
 }) {
   return (
     <div className="bg-panel border border-border-cm rounded-card p-5 shadow-card">
       <div className="section-label mb-3">{CATEGORY_LABELS[category]}</div>
       <div>
-        {CATEGORY_ATTRS[category].map((key) => (
-          <AttributeBar
-            key={key}
-            label={ATTR_LABELS[key]}
-            value={(player[key] as number | null) ?? null}
-            hidden={!reveal}
-          />
-        ))}
+        {CATEGORY_ATTRS[category].map((key) => {
+          const hidden = revealedKeys !== null && !revealedKeys.has(key);
+          return (
+            <AttributeBar
+              key={key}
+              label={ATTR_LABELS[key]}
+              value={(player[key] as number | null) ?? null}
+              hidden={hidden}
+            />
+          );
+        })}
       </div>
     </div>
   );
