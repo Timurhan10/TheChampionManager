@@ -55,7 +55,7 @@ npm run dev
 | **Faz 0** | Proje kurulumu + tam veritabanı şeması + Supabase client + routing iskeleti + auth middleware | ✅ Tamam |
 | **Faz 1** | Kayıt/giriş, 3 adımlı takım & 25 oyuncu oluşturma, dashboard, kadro listesi, oyuncu profili | ✅ Tamam |
 | **Faz 2** | Lig oluşturma/katılma, AI takımları, round-robin fikstür, puan tablosu, cron | ✅ Tamam |
-| **Faz 3** | Taktik sistemi + maç simülasyon motoru + maç tamamlama | ⏳ |
+| **Faz 3** | Taktik sistemi + maç simülasyon motoru + maç tamamlama | ✅ Tamam |
 | **Faz 4** | Scouting + transfer pazarı + alt yapı | ⏳ |
 | **Faz 5** | Phaser.js 2D canlı maç + Socket.io | ⏳ |
 | **Faz 6** | CMP mağazası + sezon sonu + iyzico abonelik + bildirimler | ⏳ |
@@ -78,4 +78,13 @@ npm run dev
 - **Lig detay sayfası**: tam puan tablosu (O/G/B/M/AG/YG/AV/P), kendi takım vurgusu, terfi (1-3) & küme düşme bölgeleri, haftalara gruplu fikstür.
 - **Cron** (`/api/cron/trigger-matches` + `vercel.json`): her 15 dk vadesi gelen maçları tespit eder (motor Faz 3'te bağlanacak).
 
-Diğer ekranlar (Transfer, Scouting, Alt Yapı, Taktik, Maç, CMP) ilgili fazda doldurulmak üzere iskelet empty-state olarak mevcuttur.
+### Tamamlanan Özellikler (Faz 3)
+
+- **Taktik sayfası** (`/tactics`): 6 diziliş (4-4-2, 4-3-3, 4-2-3-1, 3-5-2, 5-3-2, 4-1-4-1), saha üzerinde slot-bazlı kadro seçimi, mentalite/pressing/tempo/geçiş segment kontrolleri, yedek seçimi (max 7), **otomatik kaydetme** (debounce). Maça kadar serbest, kilitleme yok.
+- **Taktik kaydetme** (`/api/tactics/save`): `tactics` tablosuna upsert.
+- **Maç simülasyon motoru** (`lib/match-engine/simulator.ts`): kadro + taktikten atak/defans/orta saha gücü hesabı, Poisson tabanlı gol üretimi, ev sahibi avantajı, mentalite (hücumcu +%20 gol şansı) & pressing etkileri, pozisyon-ağırlıklı golcü seçimi, kart/değişiklik olayları, top hakimiyeti/şut/korner istatistikleri, maçın adamı. _200 maçlık testte 0 çökme, ~2.6 gol/maç._
+- **Maç tamamlama** (`lib/match-engine/run.ts` + `/api/matches/complete`): skor + olaylar + istatistik kaydı, puan tablosu güncellemesi (G/B/M, goller), CR ödülleri (galibiyet +4.000 / beraberlik +1.500 / mağlubiyet +500).
+- **Cron entegrasyonu**: `/api/cron/trigger-matches` artık vadesi gelen maçları gerçekten simüle edip tamamlıyor.
+- **Maç sonucu sayfası** (`/match/[id]/result`): skor, MotM, dakika-dakika olay feed'i (GOL/SK/KRT/DEĞ/İY/MS), karşılaştırmalı istatistik barları. Lig fikstüründe biten maçlar buraya linkli.
+
+Diğer ekranlar (Transfer, Scouting, Alt Yapı, Canlı 2D Maç, CMP) ilgili fazda doldurulmak üzere iskelet empty-state olarak mevcuttur.
