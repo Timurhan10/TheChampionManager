@@ -57,7 +57,7 @@ npm run dev
 | **Faz 2** | Lig oluşturma/katılma, AI takımları, round-robin fikstür, puan tablosu, cron | ✅ Tamam |
 | **Faz 3** | Taktik sistemi + maç simülasyon motoru + maç tamamlama | ✅ Tamam |
 | **Faz 4** | Scouting + transfer pazarı + alt yapı | ✅ Tamam |
-| **Faz 5** | Phaser.js 2D canlı maç + Socket.io | ⏳ |
+| **Faz 5** | Phaser.js 2D canlı maç + Socket.io | ✅ Tamam |
 | **Faz 6** | CMP mağazası + sezon sonu + iyzico abonelik + bildirimler | ⏳ |
 
 ### Tamamlanan Özellikler (Faz 0–1)
@@ -95,4 +95,15 @@ npm run dev
 - **Cron**: `/api/scouting/complete` (15 dk) bekleyen scout raporlarını tamamlar.
 - **Migration 0002**: `teams.scout_level` kolonu + indeksler.
 
-Diğer ekranlar (Canlı 2D Maç → Faz 5, CMP Mağazası → Faz 6) ilgili fazda doldurulmak üzere iskelet empty-state olarak mevcuttur.
+### Tamamlanan Özellikler (Faz 5)
+
+- **Phaser.js 2D maç sahnesi** (`game/matchGame.ts`): yeşil saha (çizgiler, ceza alanları, orta daire), ev sahibi (mavi, alt yarı) / deplasman (kırmızı, üst yarı) oyuncu daireleri, beyaz top; idle hareket tween'leri; gol flash + konfeti, kart animasyonu, skor/dakika overlay'i. Yalnızca client'ta dinamik import edilir (SSR güvenli).
+- **Maç izleme sayfası** (`/match/[id]`): React + Phaser entegrasyonu (`MatchCanvas`), biten maçların `match_events`'ini **zaman çizelgesinde replay** eder — başlat/duraklat/baştan + 0.5x/1x/2x hız kontrolleri, canlı yorum feed'i, istatistik paneli. Maç başlamadıysa **maç öncesi geri sayım** (`PreMatch`) + "Taktiği Hazırla" linki.
+- **Socket.io sunucusu** (`services/socket-server/`): Railway için ayrı Node servisi (Express + Socket.io), `match-{id}` oda sistemi, maç motorunun olay yayınlaması için korumalı `/emit` ucu, Dockerfile + README. Frontend `lib/match-socket.ts` ile `NEXT_PUBLIC_SOCKET_URL` ayarlıysa canlı bağlanır; değilse replay moduna düşer (altyapı gerektirmez).
+
+### Dağıtım (Deployment)
+
+- **Frontend (Vercel):** Repo kökünü deploy et; `.env.local.example`'daki değişkenleri Vercel env olarak ekle. `vercel.json` cron'ları otomatik kurulur.
+- **Socket sunucusu (Railway):** `services/socket-server` klasörünü/Dockerfile'ı kullan; `EMIT_SECRET` + `CORS_ORIGIN` ayarla; public URL'i frontend'de `NEXT_PUBLIC_SOCKET_URL` yap.
+
+CMP Mağazası ekranı (Faz 6) ilgili fazda doldurulmak üzere iskelet empty-state olarak mevcuttur.
