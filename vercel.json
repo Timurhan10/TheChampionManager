@@ -2,11 +2,11 @@
   "crons": [
     {
       "path": "/api/cron/trigger-matches",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 3 * * *"
     },
     {
       "path": "/api/scouting/complete",
-      "schedule": "*/15 * * * *"
+      "schedule": "30 3 * * *"
     }
   ]
 }
