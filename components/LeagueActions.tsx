@@ -40,10 +40,11 @@ export default function LeagueActions() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
+      if (!data.leagueId) throw new Error("Lig oluşturuldu ama kimlik alınamadı.");
       setSuccess(`Lig oluşturuldu! Davet kodu: ${data.inviteCode}`);
-      router.refresh();
-      setTimeout(() => router.push(`/league/${data.leagueId}`), 1200);
-    } catch (e: any) { setError(e.message); } finally { setLoading(false); }
+      // Doğrudan yönlendir (refresh + timeout yarışı kaldırıldı)
+      router.push(`/league/${data.leagueId}`);
+    } catch (e: any) { setError(e.message); setLoading(false); }
   }
 
   async function joinLeague() {
