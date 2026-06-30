@@ -55,11 +55,11 @@ export default function PlayerActions({
           </>
         ) : (
           <>
-            <p className="text-[11px] text-text-faint text-center">Fiyat oyuncunun performansına göre sistemce belirlenir.</p>
-            <button onClick={async () => { const d = await call("list", "/api/players/list-for-sale", { playerId, forSale: true }); if (d) setMsg({ text: `Satışa çıkarıldı · ${(d.price ?? 0).toLocaleString("tr-TR")} CR`, ok: true }); }}
+            <p className="text-[11px] text-text-faint text-center">Fiyat performansa göre sistemce belirlenir. Para anında kasana eklenir.</p>
+            <button onClick={async () => { const d = await call("list", "/api/players/list-for-sale", { playerId, forSale: true }); if (d) setMsg({ text: `Satıldı · +${(d.price ?? 0).toLocaleString("tr-TR")} CR kasana eklendi`, ok: true }); }}
               disabled={loading === "list"}
               className="w-full bg-emerald text-emerald-ink font-semibold py-2.5 rounded-lg hover:bg-emerald-bright text-sm disabled:opacity-50">
-              Transfer Pazarına Çıkar
+              Oyuncuyu Sat (Anında)
             </button>
           </>
         )}

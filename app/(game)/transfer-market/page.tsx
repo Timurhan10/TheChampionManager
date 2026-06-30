@@ -115,8 +115,12 @@ export default async function TransferMarketPage() {
             </div>
 
             {marketCompare.length >= 2 && (
-              <div className="mt-5">
-                <PlayerCompare players={marketCompare} title="Oyuncu Karşılaştırma (alım öncesi)" />
+              <div className="mt-6 pt-5 border-t border-border-cm">
+                <h3 className="font-display font-extrabold text-lg mb-1 flex items-center gap-2">
+                  <span className="text-emerald">⇄</span> Oyuncu Karşılaştırma
+                </h3>
+                <p className="text-xs text-text-muted mb-3">Almadan önce iki oyuncuyu yan yana karşılaştır.</p>
+                <PlayerCompare players={marketCompare} title="Alım öncesi karşılaştırma" />
               </div>
             )}
           </div>

@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { getTeamEditability } from "@/lib/team-guard";
 import { simulateMatch, type EngineTeam } from "@/lib/match-engine/simulator";
 import { generatePlayer } from "@/lib/player-generator";
 import type { Player, Tactics, Position } from "@/types/game";
@@ -42,10 +41,6 @@ export async function POST(req: Request) {
   const { data: team } = await svc.from("teams").select("id, name").eq("user_id", user.id).maybeSingle();
   if (!team) return NextResponse.json({ error: "Takım bulunamadı." }, { status: 400 });
 
-  // Lig başladıysa hazırlık maçları kapalı.
-  const { inActiveLeague } = await getTeamEditability(svc, team.id);
-  if (inActiveLeague) return NextResponse.json({ error: "Lig başladı, hazırlık maçları kapandı." }, { status: 400 });
-
   const { data: players } = await svc.from("players").select("*").eq("team_id", team.id);
   if (!players || players.length < 11) return NextResponse.json({ error: "Hazırlık maçı için en az 11 oyuncun olmalı." }, { status: 400 });
   const { data: tactics } = await svc.from("tactics").select("*").eq("team_id", team.id).maybeSingle();
@@ -56,8 +51,30 @@ export async function POST(req: Request) {
   };
   const away = buildOpponent(body.opponentName?.trim() || `${diff.label} Rakip`, diff.range);
 
-  // Simülasyon — HİÇBİR ŞEY kaydedilmez (reyting/para/puan etkilenmez).
+  // Simülasyon — reyting/para/puan ETKİLENMEZ. Yalnızca geçmiş için maç kaydı tutulur.
   const result = simulateMatch(home, away);
+  const homeRatings = result.playerRatings.filter((r) => r.team === "home");
+
+  // Geçmiş kaydı: matches tablosuna (league_id NULL = hazırlık maçı, away_team_id NULL = geçici rakip).
+  // Kolon/şema sorunlarında sessizce atla — maç sonucu yine döner.
+  try {
+    await svc.from("matches").insert({
+      league_id: null,
+      home_team_id: team.id,
+      away_team_id: null,
+      scheduled_at: new Date().toISOString(),
+      status: "finished",
+      home_score: result.homeScore,
+      away_score: result.awayScore,
+      match_events: {
+        friendly: true,
+        opponentName: away.name,
+        stats: result.stats,
+        motm: result.manOfTheMatch,
+        ratings: homeRatings,
+      },
+    });
+  } catch { /* geçmiş kaydı kritik değil */ }
 
   return NextResponse.json({
     ok: true,
@@ -65,6 +82,6 @@ export async function POST(req: Request) {
     away: { name: away.name, score: result.awayScore },
     motm: result.manOfTheMatch,
     stats: result.stats,
-    ratings: result.playerRatings.filter((r) => r.team === "home"),
+    ratings: homeRatings,
   });
 }

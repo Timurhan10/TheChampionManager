@@ -31,8 +31,12 @@ export default async function TacticsPage() {
         <TacticsBoard players={list} initial={(tactics as Tactics) ?? null} />
 
         {comparePlayers.length >= 2 && (
-          <div className="mt-6 max-w-2xl">
-            <PlayerCompare players={comparePlayers} title="Oyuncu Karşılaştırma" />
+          <div className="mt-8 pt-5 border-t border-border-cm max-w-2xl">
+            <h3 className="font-display font-extrabold text-lg mb-1 flex items-center gap-2">
+              <span className="text-emerald">⇄</span> Oyuncu Karşılaştırma
+            </h3>
+            <p className="text-xs text-text-muted mb-3">İki oyuncunu seç, özelliklerini yan yana karşılaştır.</p>
+            <PlayerCompare players={comparePlayers} title="Karşılaştırma" />
           </div>
         )}
       </div>

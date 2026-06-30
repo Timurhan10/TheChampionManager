@@ -5,6 +5,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { computeAutoSalePrice, sellProbability } from "./pricing";
 import { notify } from "./notifications";
 
+// transfers.message üzerinde "satıcıya ödendi" işareti. Geçmiş satış mutabakatı
+// (admin) yalnızca bu işareti TAŞIMAYAN eski satışları kredilendirir → çift ödeme yok.
+export const SALE_PAID_MARK = "seller_paid";
+
 interface ClaimedSale {
   playerId: string;
   name: string;
@@ -127,6 +131,7 @@ export async function processSales(svc: SupabaseClient): Promise<{ processed: nu
     await svc.from("transfers").insert({
       player_id: s.playerId, from_team_id: s.fromTeamId, to_team_id: s.buyer,
       offer_amount: s.price, status: "accepted", resolved_at: new Date().toISOString(),
+      message: SALE_PAID_MARK,
     });
     await notify(svc, s.userId, "transfer_result", `${s.name} satıldı`, `+${s.price.toLocaleString("tr-TR")} CR kasana eklendi.`);
   }
