@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getGameContext } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import PageTopBar from "@/components/PageTopBar";
+import BackButton from "@/components/BackButton";
 import { POSITION_COLORS, POSITION_LABELS } from "@/lib/attributes";
 import type { Player, Position } from "@/types/game";
 
@@ -40,6 +41,7 @@ export default async function SquadViewPage({ params }: { params: { teamId: stri
     <>
       <PageTopBar title={team.name} subtitle={`Kadro · ${list.length} oyuncu`} />
       <div className="flex-1 overflow-y-auto p-[22px]">
+        <BackButton label="Geri" fallback="/league" />
         {isOwn && (
           <div className="mb-4 text-sm">
             <Link href="/team" className="text-emerald hover:underline">→ Kendi kadronu yönet</Link>
