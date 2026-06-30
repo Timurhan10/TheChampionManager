@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getGameContext } from "@/lib/data";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import PageTopBar from "@/components/PageTopBar";
 import TacticsBoard from "@/components/TacticsBoard";
 import type { Player, Tactics } from "@/types/game";
@@ -9,7 +9,8 @@ export default async function TacticsPage() {
   const { team } = await getGameContext();
   if (!team) redirect("/onboarding");
 
-  const supabase = createClient();
+  // RLS'den bağımsız güvenilir okuma (kendi takım verisi)
+  const supabase = createServiceClient();
   const [{ data: players }, { data: tactics }] = await Promise.all([
     supabase.from("players").select("*").eq("team_id", team.id).order("position"),
     supabase.from("tactics").select("*").eq("team_id", team.id).maybeSingle(),

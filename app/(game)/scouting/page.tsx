@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getGameContext } from "@/lib/data";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import PageTopBar from "@/components/PageTopBar";
 import { ScoutLevelPanel, ScoutSearch } from "@/components/ScoutingClient";
 
@@ -17,7 +17,7 @@ export default async function ScoutingPage() {
   const { team } = await getGameContext();
   if (!team) redirect("/onboarding");
 
-  const supabase = createClient();
+  const supabase = createServiceClient();
   const { data: teamRow } = await supabase.from("teams").select("scout_level").eq("id", team.id).maybeSingle();
   const scoutLevel = (teamRow as any)?.scout_level ?? 1;
 
