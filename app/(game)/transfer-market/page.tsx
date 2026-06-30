@@ -5,6 +5,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import PageTopBar from "@/components/PageTopBar";
 import IncomingOffers, { type Offer } from "@/components/IncomingOffers";
 import MarketSeedButton from "@/components/MarketSeedButton";
+import ProcessSalesButton from "@/components/ProcessSalesButton";
 import { averageRating } from "@/lib/player-generator";
 import { POSITION_COLORS, ratingColor } from "@/lib/attributes";
 import { formatNumber, teamBadge } from "@/lib/utils";
@@ -112,6 +113,12 @@ export default async function TransferMarketPage() {
                     <span className="text-xs text-amber">{formatNumber(p.asking_price ?? 0)} CR</span>
                   </Link>
                 ))}
+                {(myListings ?? []).length > 0 && (
+                  <>
+                    <p className="text-[11px] text-text-faint text-center pt-1">Satışa çıkan oyuncular en geç 3 günde otomatik satılır.</p>
+                    <ProcessSalesButton />
+                  </>
+                )}
               </div>
             </div>
 
