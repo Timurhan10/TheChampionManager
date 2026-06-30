@@ -5,6 +5,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import PageTopBar from "@/components/PageTopBar";
 import IncomingOffers, { type Offer } from "@/components/IncomingOffers";
 import MarketSeedButton from "@/components/MarketSeedButton";
+import MarketAutoRefresh from "@/components/MarketAutoRefresh";
 import ProcessSalesButton from "@/components/ProcessSalesButton";
 import { averageRating } from "@/lib/player-generator";
 import { POSITION_COLORS, ratingColor } from "@/lib/attributes";
@@ -62,6 +63,7 @@ export default async function TransferMarketPage() {
 
   return (
     <>
+      <MarketAutoRefresh />
       <PageTopBar title="Transfer Pazarı" subtitle={`${listed.length} oyuncu listede`} />
       <div className="flex-1 overflow-y-auto p-[22px]">
         <div className="grid grid-cols-[1fr_300px] gap-5">

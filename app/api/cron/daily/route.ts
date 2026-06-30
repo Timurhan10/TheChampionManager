@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { runMatch } from "@/lib/match-engine/run";
 import { processSales } from "@/lib/sales";
+import { rotateFreeAgents } from "@/lib/free-agents";
 import { notify } from "@/lib/notifications";
 
 // Tek günlük cron orkestratörü (Vercel Hobby cron sayısı sınırı için birleştirildi):
@@ -50,6 +51,11 @@ export async function GET(req: Request) {
   try {
     result.sales = await processSales(svc);
   } catch (e: any) { result.salesError = e.message; }
+
+  // 4) Transfer pazarı rotasyonu (12s gate; günlük taban)
+  try {
+    result.marketRefresh = await rotateFreeAgents(svc);
+  } catch (e: any) { result.marketError = e.message; }
 
   return NextResponse.json({ ok: true, ...result });
 }
