@@ -1,8 +1,28 @@
 // Bir maçı simüle edip sonucu kalıcılaştırır: skor, olaylar, puan tablosu, CR ödülleri.
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { simulateMatch, type EngineTeam } from "./simulator";
+import { simulateMatch, type EngineTeam, type PlayerRating } from "./simulator";
 import { MATCH_REWARDS } from "@/lib/constants";
 import type { Player, Tactics } from "@/types/game";
+
+// Oyuncu reytinglerini biriktirir. matches_played/rating_sum kolonları yoksa (migration 0005
+// öncesi) sessizce atlar; maç tamamlanması bozulmaz.
+async function persistRatings(svc: SupabaseClient, ratings: PlayerRating[]) {
+  if (!ratings.length) return;
+  try {
+    const ids = ratings.map((r) => r.playerId);
+    const { data: rows, error } = await svc.from("players").select("id, matches_played, rating_sum").in("id", ids);
+    if (error) return;
+    const cur = new Map((rows ?? []).map((r: any) => [r.id, r]));
+    for (const r of ratings) {
+      const c = cur.get(r.playerId);
+      const mp = (c?.matches_played ?? 0) + 1;
+      const rs = Number(c?.rating_sum ?? 0) + r.rating;
+      await svc.from("players").update({ matches_played: mp, rating_sum: rs }).eq("id", r.playerId);
+    }
+  } catch {
+    // kolon yoksa atla
+  }
+}
 
 async function loadTeam(svc: SupabaseClient, teamId: string): Promise<EngineTeam> {
   const { data: team } = await svc.from("teams").select("id, name, is_ai, user_id").eq("id", teamId).single();
@@ -71,11 +91,14 @@ export async function runMatch(svc: SupabaseClient, matchId: string): Promise<{ 
   const { error: updErr } = await svc.from("matches").update({
     home_score: result.homeScore,
     away_score: result.awayScore,
-    match_events: { events: result.events, stats: result.stats, motm: result.manOfTheMatch },
+    match_events: { events: result.events, stats: result.stats, motm: result.manOfTheMatch, ratings: result.playerRatings },
     status: "finished",
   }).eq("id", matchId).eq("status", "scheduled"); // çift işlemeyi önle
 
   if (updErr) return { error: updErr.message };
+
+  // Oyuncu reytinglerini biriktir (ortalama = rating_sum/matches_played)
+  await persistRatings(svc, result.playerRatings);
 
   // Puan tablosu
   await applyStanding(svc, match.league_id, home.teamId, result.homeScore, result.awayScore);

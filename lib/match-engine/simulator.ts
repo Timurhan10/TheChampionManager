@@ -23,12 +23,20 @@ export interface SimStats {
   cornersAway: number;
 }
 
+export interface PlayerRating {
+  playerId: string;
+  name: string;
+  team: "home" | "away";
+  rating: number; // 0-10
+}
+
 export interface SimResult {
   homeScore: number;
   awayScore: number;
   events: MatchEvent[];
   stats: SimStats;
   manOfTheMatch: { playerId: string; name: string; team: "home" | "away" } | null;
+  playerRatings: PlayerRating[];
 }
 
 function rand(min: number, max: number) {
@@ -264,5 +272,41 @@ export function simulateMatch(home: EngineTeam, away: EngineTeam): SimResult {
   }
   withMarkers.push({ minute: 90, type: "full_time", team: "home", text: `Maç sonu: ${homeScore}-${awayScore}` });
 
-  return { homeScore, awayScore, events: withMarkers, stats, manOfTheMatch: motm };
+  // Oyuncu reytingleri (0-10)
+  const playerRatings: PlayerRating[] = [
+    ...ratePlayers(hEleven, "home", homeScore, awayScore, goalEvents, cardEvents),
+    ...ratePlayers(aEleven, "away", awayScore, homeScore, goalEvents, cardEvents),
+  ];
+
+  return { homeScore, awayScore, events: withMarkers, stats, manOfTheMatch: motm, playerRatings };
+}
+
+// Her oyuncuya 0-10 reyting. Baz 6.0; gol, sonuç, kaleci/defans yenilen gol, kart etkiler.
+function ratePlayers(
+  eleven: Player[],
+  side: "home" | "away",
+  goalsFor: number,
+  goalsAgainst: number,
+  goalEvents: MatchEvent[],
+  cardEvents: MatchEvent[]
+): PlayerRating[] {
+  const resultAdj = goalsFor > goalsAgainst ? 0.5 : goalsFor < goalsAgainst ? -0.4 : 0;
+  return eleven.map((p) => {
+    let r = 6.0 + resultAdj;
+    // Gol
+    const goals = goalEvents.filter((e) => e.team === side && e.playerId === p.id).length;
+    r += goals * 1.1;
+    // Kaleci / defans yenilen gol etkisi
+    if (p.position === "GK") r += goalsAgainst === 0 ? 0.8 : -0.45 * goalsAgainst;
+    else if (p.position === "DF") r += goalsAgainst === 0 ? 0.4 : -0.2 * goalsAgainst;
+    else if (p.position === "FW" && goals === 0) r -= 0.2;
+    // Kartlar
+    const yellow = cardEvents.filter((e) => e.team === side && e.type === "yellow" && e.playerId === p.id).length;
+    const red = cardEvents.filter((e) => e.team === side && e.type === "red" && e.playerId === p.id).length;
+    r -= yellow * 0.3 + red * 1.5;
+    // Küçük rastgelelik + sınır
+    r += (Math.random() - 0.5) * 0.6;
+    r = Math.max(3.0, Math.min(10, r));
+    return { playerId: p.id, name: p.name, team: side, rating: Math.round(r * 10) / 10 };
+  });
 }

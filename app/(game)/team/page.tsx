@@ -70,6 +70,7 @@ export default async function TeamPage() {
                   return (
                     <div key={p.id} className="grid grid-cols-[1.7fr_60px_70px_96px_76px] gap-2 px-4 py-2.5 items-center border-b border-border-soft last:border-0 hover:bg-panel-inset/50">
                       <div className="flex items-center gap-2.5">
+                        <span className="num text-text-faint text-xs w-5 text-center shrink-0">{p.shirt_number ?? "—"}</span>
                         <span className="w-7 h-7 rounded text-[10px] font-bold flex items-center justify-center" style={{ background: POSITION_COLORS[pos].bg, color: POSITION_COLORS[pos].color }}>{pos}</span>
                         <span className="text-sm font-medium">{p.name}</span>
                         {editable && <PlayerNameEdit playerId={p.id} name={p.name} />}

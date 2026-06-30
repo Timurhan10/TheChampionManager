@@ -39,7 +39,7 @@ export async function activateLeague(svc: SupabaseClient, leagueId: string): Pro
 
     // AI kadrosu
     const squad = generateAiSquad();
-    const playerRows = squad.map((p) => ({
+    const playerRows = squad.map((p, i) => ({
       team_id: aiTeam.id,
       name: p.name,
       age: p.age,
@@ -47,6 +47,7 @@ export async function activateLeague(svc: SupabaseClient, leagueId: string): Pro
       is_youth_academy: false,
       potential: p.potential,
       value_cr: p.value_cr,
+      shirt_number: i + 1,
       ...p.attributes,
     }));
     await svc.from("players").insert(playerRows);

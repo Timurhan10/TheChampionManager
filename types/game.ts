@@ -15,6 +15,9 @@ export interface Player extends PlayerAttributes {
   value_cr: number;
   for_sale: boolean;
   asking_price: number | null;
+  shirt_number?: number | null;
+  matches_played?: number | null;
+  rating_sum?: number | null;
   created_at: string;
 }
 

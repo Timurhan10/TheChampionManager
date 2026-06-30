@@ -211,8 +211,9 @@ export default function TacticsBoard({ players, initial }: { players: Player[]; 
                   draggable={!!player}
                   onDragStart={() => player && onDragStart({ playerId: player.id, from: i })}
                   className="w-9 h-9 rounded-full flex items-center justify-center text-[10px] font-bold border-2 cursor-grab active:cursor-grabbing"
-                  style={{ background: "#0C1524", borderColor: color.color, color: player ? "#F1F5F9" : color.color }}>
-                  {player ? averageRating(player) : slot.role}
+                  style={{ background: "#0C1524", borderColor: color.color, color: player ? "#F1F5F9" : color.color }}
+                  title={player ? `${player.name} · ${averageRating(player)}` : slot.role}>
+                  {player ? (player.shirt_number ?? averageRating(player)) : slot.role}
                 </div>
                 {player ? (
                   <Link href={`/player/${player.id}`} className="text-[9px] text-white/90 bg-black/40 rounded px-1 hover:text-emerald max-w-[78px] truncate">
