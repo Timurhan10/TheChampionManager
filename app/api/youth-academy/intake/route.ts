@@ -19,7 +19,19 @@ export async function POST() {
   const { data: academy } = await svc.from("youth_academy").select("*").eq("team_id", team.id).maybeSingle();
   if (!academy?.is_active) return NextResponse.json({ error: "Önce alt yapıyı aktif et." }, { status: 400 });
 
-  const count = 1 + Math.floor(Math.random() * 3); // 1-3
+  // Alt yapı en fazla 5 oyuncu üretebilir (toplam).
+  const MAX_YOUTH = 5;
+  const { count: existingYouth } = await svc
+    .from("players")
+    .select("id", { count: "exact", head: true })
+    .eq("team_id", team.id)
+    .eq("is_youth_academy", true);
+  const remaining = MAX_YOUTH - (existingYouth ?? 0);
+  if (remaining <= 0) {
+    return NextResponse.json({ error: `Alt yapı en fazla ${MAX_YOUTH} oyuncu üretebilir. Limite ulaştın.` }, { status: 400 });
+  }
+
+  const count = Math.min(remaining, 1 + Math.floor(Math.random() * 3)); // 1-3, kalan limit kadar
   const rows = Array.from({ length: count }).map(() => {
     const position = POSITIONS[Math.floor(Math.random() * POSITIONS.length)];
     const age = 16 + Math.floor(Math.random() * 4); // 16-19

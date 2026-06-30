@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 // Maç reytingi (0-10) renk eşiği
 function matchRatingColor(v: number): string {
@@ -22,7 +23,8 @@ const DIFFS = [
   { key: "hard", label: "Zor" },
 ];
 
-export default function FriendlyMatch({ canPlay }: { canPlay: boolean }) {
+export default function FriendlyMatch({ canPlay = true }: { canPlay?: boolean }) {
+  const router = useRouter();
   const [difficulty, setDifficulty] = useState("medium");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -38,13 +40,14 @@ export default function FriendlyMatch({ canPlay }: { canPlay: boolean }) {
       const d = await res.json();
       if (!res.ok) throw new Error(d.error || "Maç oynanamadı.");
       setResult(d);
+      router.refresh(); // geçmiş listesini güncelle
     } catch (e: any) { setErr(e.message); } finally { setLoading(false); }
   }
 
   if (!canPlay) {
     return (
       <div className="bg-panel border border-border-cm rounded-card p-6 text-center">
-        <p className="text-sm text-text-muted">Lig başladığı için hazırlık maçları kapandı. Hazırlık maçları yalnızca lig öncesi oynanabilir.</p>
+        <p className="text-sm text-text-muted">Hazırlık maçları şu an kullanılamıyor.</p>
       </div>
     );
   }
