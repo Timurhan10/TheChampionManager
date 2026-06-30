@@ -1,12 +1,13 @@
 name: Deploy to Vercel
 
-# main'e her push/merge'de OTOMATİK, ayrıca elle (workflow_dispatch) tetiklenir.
-# GitHub runner Vercel'e çıkabildiği için deploy buradan yapılır.
-# Gerekli secret'lar: VERCEL_TOKEN, SUPA_URL, SUPA_ANON, SUPA_SERVICE
+# Elle (workflow_dispatch) tetiklenir. GitHub runner Vercel'e çıkabildiği için
+# deploy buradan yapılır. Gerekli secret'lar: VERCEL_TOKEN, SUPA_URL, SUPA_ANON, SUPA_SERVICE
+#
+# Not: Production deploy normalde Vercel'in GitHub entegrasyonuyla otomatik yapılır
+# (main'e push -> otomatik Production deploy). Bu workflow yalnızca yedek/manuel
+# deploy içindir ve secret'lar tanımlı olmadan çalışmaz.
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
 
 jobs:
   deploy:
