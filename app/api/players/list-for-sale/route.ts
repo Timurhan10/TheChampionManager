@@ -29,10 +29,17 @@ export async function POST(req: Request) {
 
   if (body.forSale) {
     const price = computeSellPrice(player);
-    await svc.from("players").update({ for_sale: true, asking_price: price }).eq("id", player.id);
+    // listed_at ile (3 gün garantisi); kolon yoksa onsuz devam
+    const withTime = await svc.from("players").update({ for_sale: true, asking_price: price, listed_at: new Date().toISOString() }).eq("id", player.id);
+    if (withTime.error) {
+      await svc.from("players").update({ for_sale: true, asking_price: price }).eq("id", player.id);
+    }
     return NextResponse.json({ ok: true, price });
   } else {
-    await svc.from("players").update({ for_sale: false, asking_price: null }).eq("id", player.id);
+    const withTime = await svc.from("players").update({ for_sale: false, asking_price: null, listed_at: null }).eq("id", player.id);
+    if (withTime.error) {
+      await svc.from("players").update({ for_sale: false, asking_price: null }).eq("id", player.id);
+    }
     return NextResponse.json({ ok: true });
   }
 }

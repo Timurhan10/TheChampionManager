@@ -1,12 +1,8 @@
 {
   "crons": [
     {
-      "path": "/api/cron/trigger-matches",
-      "schedule": "0 3 * * *"
-    },
-    {
-      "path": "/api/scouting/complete",
-      "schedule": "30 3 * * *"
+      "path": "/api/cron/daily",
+      "schedule": "0 4 * * *"
     }
   ]
 }

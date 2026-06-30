@@ -22,3 +22,39 @@ export function computeSellPrice(p: {
   }
   return Math.max(500, Math.round((base * factor) / 100) * 100);
 }
+
+// --- Otomatik satış (GİZLİ): piyasa değeri + performans + yaş + mevki + talep ---
+interface SaleInput {
+  value_cr: number;
+  matches_played?: number | null;
+  rating_sum?: number | null;
+  age: number;
+  position: string;
+}
+
+function ageFactor(age: number): number {
+  if (age <= 23) return 1.05;
+  if (age <= 29) return 1.0;
+  if (age <= 32) return 0.9;
+  return 0.75;
+}
+function positionDemand(pos: string): number {
+  return pos === "FW" ? 1.05 : pos === "MF" ? 1.0 : pos === "DF" ? 0.98 : 0.95; // GK en az talep
+}
+
+export function computeAutoSalePrice(p: SaleInput): number {
+  // Performans katmanı (computeSellPrice mantığı) → sonra yaş/mevki/talep
+  const perfPriced = computeSellPrice(p);
+  const demand = 0.92 + Math.random() * 0.16; // 0.92–1.08
+  const price = perfPriced * ageFactor(p.age) * positionDemand(p.position) * demand;
+  return Math.max(500, Math.round(price / 100) * 100);
+}
+
+// Bu cron çalışmasında satılma olasılığı (iyi/değerli oyuncu daha çabuk satılır).
+// 3 gün dolduysa çağıran taraf zaten zorla satar.
+export function sellProbability(p: SaleInput): number {
+  const mp = p.matches_played ?? 0;
+  const avg = mp > 0 ? Number(p.rating_sum ?? 0) / mp : 6.0;
+  let prob = 0.45 + (avg - 6.0) * 0.06 + positionDemand(p.position) - 1; // ~0.3–0.7
+  return Math.max(0.25, Math.min(0.8, prob));
+}
