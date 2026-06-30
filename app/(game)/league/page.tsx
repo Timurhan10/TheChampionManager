@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getGameContext } from "@/lib/data";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import PageTopBar from "@/components/PageTopBar";
 import LeagueActions from "@/components/LeagueActions";
 import { LEAGUE_SIZE } from "@/lib/constants";
@@ -16,7 +16,8 @@ export default async function LeaguePage() {
   const { team } = await getGameContext();
   if (!team) redirect("/onboarding");
 
-  const supabase = createClient();
+  // Lig verisi herkese açık; RLS'den bağımsız okumak için service client.
+  const supabase = createServiceClient();
   const { data: memberships } = await supabase
     .from("league_teams")
     .select("league_id, leagues(id, name, status, season_number, invite_code)")

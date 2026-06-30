@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getGameContext } from "@/lib/data";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
+import InviteCode from "@/components/InviteCode";
 import PageTopBar from "@/components/PageTopBar";
 import StartLeagueButton from "@/components/StartLeagueButton";
 import SeasonEndButton from "@/components/SeasonEndButton";
@@ -25,7 +26,8 @@ export default async function LeagueDetailPage({ params }: { params: { id: strin
   const { team } = await getGameContext();
   if (!team) redirect("/onboarding");
 
-  const supabase = createClient();
+  // Lig/puan/fikstür herkese açık veridir; RLS durumundan bağımsız okumak için service client.
+  const supabase = createServiceClient();
 
   // Geçici DB hatası ile "kayıt yok"u ayır; hatada bir kez yeniden dene.
   let league: any = null;
@@ -110,6 +112,12 @@ export default async function LeagueDetailPage({ params }: { params: { id: strin
     <>
       <PageTopBar title={league.name} subtitle={`Sezon ${league.season_number}`} />
       <div className="flex-1 overflow-y-auto p-[22px]">
+        {/* Davet kodu — sağ üst, kopyalanabilir */}
+        {league.invite_code && (
+          <div className="flex justify-end mb-3">
+            <InviteCode code={league.invite_code} />
+          </div>
+        )}
         {league.status === "waiting" && (
           <div className="mb-5">
             {isCreator ? (
