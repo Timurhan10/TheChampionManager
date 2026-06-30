@@ -162,6 +162,18 @@ export const POSITION_COLORS: Record<string, { color: string; bg: string }> = {
   FW: { color: "#EF4444", bg: "rgba(239,68,68,0.14)" },
 };
 
+// Pazarda/rakip kadroda scout edilmeden VARSAYILAN görünür özellikler (pozisyona göre ~4).
+export const DEFAULT_VISIBLE_ATTRS: Record<string, AttributeKey[]> = {
+  GK: ["reflexes", "handling", "command_of_area", "jumping"],
+  DF: ["tackling", "positioning", "strength", "heading"],
+  MF: ["passing", "vision", "stamina", "work_rate"],
+  FW: ["shooting", "pace", "off_the_ball", "dribbling"],
+};
+
+export function defaultVisibleAttrs(position: string): AttributeKey[] {
+  return DEFAULT_VISIBLE_ATTRS[position] ?? DEFAULT_VISIBLE_ATTRS.MF;
+}
+
 // Attribute / rating renk eşikleri (1-20 skala)
 export function ratingColor(value: number | null | undefined): string {
   if (value == null) return "#475A73";

@@ -12,6 +12,7 @@ import {
   POSITION_COLORS,
   POSITION_LABELS,
   ratingColor,
+  defaultVisibleAttrs,
   ALL_OUTFIELD_ATTRS,
   GOALKEEPING_ATTRS,
   type AttributeCategory,
@@ -31,11 +32,13 @@ export default async function PlayerProfilePage({ params }: { params: { id: stri
   const player = data as Player;
   const isOwn = player.team_id === team.id;
 
-  // Scouting ile açılan attribute'lar (kendi oyuncusu değilse)
+  // Scouting ile açılan + varsayılan görünür attribute'lar (kendi oyuncusu değilse)
   let revealedSet: Set<string> | null = null; // null = hepsi açık
   if (!isOwn) {
     const map = await getRevealedKeys(supabase, team.id, [player.id]);
-    revealedSet = map.get(player.id) ?? new Set<string>();
+    const set = map.get(player.id) ?? new Set<string>();
+    for (const k of defaultVisibleAttrs(player.position)) set.add(k); // birkaç özellik baştan görünür
+    revealedSet = set;
   }
 
   const relevantAttrs: AttributeKey[] = player.position === "GK"

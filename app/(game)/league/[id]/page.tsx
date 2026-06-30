@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getGameContext } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
@@ -26,8 +26,41 @@ export default async function LeagueDetailPage({ params }: { params: { id: strin
   if (!team) redirect("/onboarding");
 
   const supabase = createClient();
-  const { data: league } = await supabase.from("leagues").select("*").eq("id", params.id).maybeSingle();
-  if (!league) notFound();
+
+  // Geçici DB hatası ile "kayıt yok"u ayır; hatada bir kez yeniden dene.
+  let league: any = null;
+  let readError = false;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const { data, error } = await supabase.from("leagues").select("*").eq("id", params.id).maybeSingle();
+    if (error) { readError = true; continue; }
+    league = data; readError = false; break;
+  }
+
+  if (readError) {
+    return (
+      <>
+        <PageTopBar title="Lig" subtitle="Bağlantı" />
+        <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+          <p className="text-text-2 mb-1">Lig yüklenirken geçici bir sorun oluştu.</p>
+          <p className="text-text-faint text-sm mb-4">Lütfen sayfayı yenile.</p>
+          <Link href={`/league/${params.id}`} className="bg-emerald text-emerald-ink font-semibold px-5 py-2.5 rounded-lg hover:bg-emerald-bright">Tekrar Dene</Link>
+        </div>
+      </>
+    );
+  }
+
+  if (!league) {
+    return (
+      <>
+        <PageTopBar title="Lig" subtitle="Bulunamadı" />
+        <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+          <p className="text-text-2 mb-1">Bu lig bulunamadı.</p>
+          <p className="text-text-faint text-sm mb-4">Silinmiş olabilir veya bağlantı hatalı.</p>
+          <Link href="/league" className="bg-emerald text-emerald-ink font-semibold px-5 py-2.5 rounded-lg hover:bg-emerald-bright">Liglerim</Link>
+        </div>
+      </>
+    );
+  }
 
   // Puan tablosu + fikstür paralel
   const [{ data: lt }, { data: matchRows }] = await Promise.all([
@@ -123,11 +156,11 @@ export default async function LeagueDetailPage({ params }: { params: { id: strin
                     )}>
                     {isOwn && <span className="absolute left-0 top-0 bottom-0 w-[3px] bg-emerald" />}
                     <span className="font-display font-bold text-center" style={{ color: promo ? "#10B981" : releg ? "#EF4444" : undefined }}>{pos}</span>
-                    <span className={cn("flex items-center gap-2 truncate", isOwn && "text-emerald font-semibold")}>
+                    <Link href={`/squad/${s.team_id}`} className={cn("flex items-center gap-2 truncate hover:underline", isOwn && "text-emerald font-semibold")}>
                       <span className="w-5 h-5 rounded text-[9px] font-bold flex items-center justify-center bg-panel-inset shrink-0">{teamBadge(s.name)}</span>
                       <span className="truncate">{s.name}</span>
                       {s.is_ai && <span className="text-[8px] text-text-faint">AI</span>}
-                    </span>
+                    </Link>
                     <span className="text-center text-text-2 num">{played}</span>
                     <span className="text-center text-text-2 num">{s.wins}</span>
                     <span className="text-center text-text-2 num">{s.draws}</span>

@@ -80,12 +80,12 @@ export default function PlayerActions({
           </button>
         </>
       )}
-      <button onClick={async () => { if (await call("scout", "/api/scouting/start", { playerId, level: "basic" })) setMsg({ text: "Temel scout tamamlandı! Özellikler açıldı.", ok: true }); }}
-        disabled={loading === "scout"}
+      <button onClick={async () => { const d = await call("reveal", "/api/players/reveal-all", { playerId }); if (d) setMsg({ text: d.alreadyRevealed ? "Tüm özellikler zaten açık." : "Tüm özellikler açıldı!", ok: true }); }}
+        disabled={loading === "reveal"}
         className="w-full border border-blue-cm text-blue-cm-bright font-semibold py-2.5 rounded-lg hover:bg-blue-cm/10 text-sm disabled:opacity-50">
-        Hızlı Scout (Temel · 500 CR)
+        Tüm Özellikleri Aç · 500 CR
       </button>
-      <Link href="/scouting" className="block text-center text-xs text-text-muted hover:text-text-cm pt-1">Detaylı scout için Scouting Merkezi →</Link>
+      <Link href="/scouting" className="block text-center text-xs text-text-muted hover:text-text-cm pt-1">Scouting Merkezi (paketler) →</Link>
       {msg && <p className={`text-xs ${msg.ok ? "text-emerald-bright" : "text-danger"}`}>{msg.text}</p>}
     </div>
   );
