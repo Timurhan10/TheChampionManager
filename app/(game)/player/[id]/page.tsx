@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import PageTopBar from "@/components/PageTopBar";
 import AttributeBar from "@/components/AttributeBar";
 import PlayerActions from "@/components/PlayerActions";
+import BackButton from "@/components/BackButton";
 import { averageRating } from "@/lib/player-generator";
 import {
   CATEGORY_ATTRS,
@@ -60,6 +61,7 @@ export default async function PlayerProfilePage({ params }: { params: { id: stri
     <>
       <PageTopBar title={player.name} subtitle={POSITION_LABELS[player.position]} />
       <div className="flex-1 overflow-y-auto p-[22px]">
+        <BackButton label="Geri" fallback="/team" />
         {/* Kimlik başlığı */}
         <div className="bg-gradient-to-r from-panel to-panel-inset border border-border-cm rounded-card p-6 mb-5 shadow-card flex items-center gap-5">
           <div className="w-[74px] h-[74px] rounded-xl flex items-center justify-center font-display font-extrabold text-2xl"

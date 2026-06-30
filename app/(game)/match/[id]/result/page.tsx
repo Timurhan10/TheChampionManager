@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getGameContext } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import PageTopBar from "@/components/PageTopBar";
+import BackButton from "@/components/BackButton";
 import { teamBadge, cn } from "@/lib/utils";
 import type { MatchEvent } from "@/types/game";
 
@@ -58,6 +59,7 @@ export default async function MatchResultPage({ params }: { params: { id: string
     <>
       <PageTopBar title="Maç Sonucu" subtitle={`Hafta ${match.week ?? "-"}`} />
       <div className="flex-1 overflow-y-auto p-[22px]">
+        <BackButton label="Geri" fallback="/league" />
         {/* Skor başlığı */}
         <div className="bg-gradient-to-r from-panel to-panel-inset border border-border-cm rounded-card p-6 mb-5 shadow-card">
           <div className="grid grid-cols-3 items-center">
