@@ -26,14 +26,15 @@ export default async function LeaguePage() {
     .map((m: any) => m.leagues)
     .filter(Boolean);
 
-  // Her lig için takım sayısı
+  // Her lig için takım sayısı — tek sorguda (N+1 yerine)
   const counts: Record<string, number> = {};
-  for (const lg of leagues) {
-    const { count } = await supabase
+  const leagueIds = leagues.map((l: any) => l.id);
+  if (leagueIds.length) {
+    const { data: ltRows } = await supabase
       .from("league_teams")
-      .select("id", { count: "exact", head: true })
-      .eq("league_id", lg.id);
-    counts[lg.id] = count ?? 0;
+      .select("league_id")
+      .in("league_id", leagueIds);
+    for (const r of ltRows ?? []) counts[(r as any).league_id] = (counts[(r as any).league_id] ?? 0) + 1;
   }
 
   return (

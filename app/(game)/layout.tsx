@@ -22,7 +22,7 @@ export default async function GameLayout({
       username={gameUser?.username ?? "Menajer"}
     >
       <div className="flex h-screen overflow-hidden">
-        <Sidebar teamName={team?.name} username={gameUser?.username} />
+        <Sidebar teamName={team?.name} username={gameUser?.username} isAdmin={(gameUser as any)?.is_admin === true} />
         <div className="flex-1 flex flex-col overflow-hidden bg-bg-deep">
           {children}
         </div>

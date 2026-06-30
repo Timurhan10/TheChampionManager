@@ -29,11 +29,19 @@ export default async function LeagueDetailPage({ params }: { params: { id: strin
   const { data: league } = await supabase.from("leagues").select("*").eq("id", params.id).maybeSingle();
   if (!league) notFound();
 
-  // Puan tablosu
-  const { data: lt } = await supabase
-    .from("league_teams")
-    .select("team_id, points, wins, draws, losses, goals_for, goals_against, teams(name, is_ai)")
-    .eq("league_id", params.id);
+  // Puan tablosu + fikstür paralel
+  const [{ data: lt }, { data: matchRows }] = await Promise.all([
+    supabase
+      .from("league_teams")
+      .select("team_id, points, wins, draws, losses, goals_for, goals_against, teams(name, is_ai)")
+      .eq("league_id", params.id),
+    supabase
+      .from("matches")
+      .select("id, week, scheduled_at, status, home_score, away_score, home_team_id, away_team_id")
+      .eq("league_id", params.id)
+      .order("week")
+      .order("scheduled_at"),
+  ]);
 
   const standings: Standing[] = (lt ?? []).map((r: any) => ({
     team_id: r.team_id,
@@ -49,14 +57,6 @@ export default async function LeagueDetailPage({ params }: { params: { id: strin
     b.goals_for - a.goals_for ||
     a.name.localeCompare(b.name)
   );
-
-  // Fikstür
-  const { data: matchRows } = await supabase
-    .from("matches")
-    .select("id, week, scheduled_at, status, home_score, away_score, home_team_id, away_team_id")
-    .eq("league_id", params.id)
-    .order("week")
-    .order("scheduled_at");
 
   const teamName: Record<string, string> = {};
   for (const s of standings) teamName[s.team_id] = s.name;
