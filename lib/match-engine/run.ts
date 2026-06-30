@@ -1,6 +1,6 @@
 // Bir maçı simüle edip sonucu kalıcılaştırır: skor, olaylar, puan tablosu, CR ödülleri.
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { simulateMatch, type EngineTeam, type PlayerRating } from "./simulator";
+import { simulateMatch, type EngineTeam, type PlayerRating, type SimResult } from "./simulator";
 import { MATCH_REWARDS } from "@/lib/constants";
 import type { Player, Tactics } from "@/types/game";
 
@@ -74,7 +74,7 @@ async function rewardTeam(svc: SupabaseClient, team: EngineTeam, gf: number, ga:
   }
 }
 
-export async function runMatch(svc: SupabaseClient, matchId: string): Promise<{ error?: string; skipped?: boolean }> {
+export async function runMatch(svc: SupabaseClient, matchId: string): Promise<{ error?: string; skipped?: boolean; result?: SimResult }> {
   const { data: match } = await svc
     .from("matches")
     .select("id, league_id, home_team_id, away_team_id, status")
@@ -108,5 +108,5 @@ export async function runMatch(svc: SupabaseClient, matchId: string): Promise<{ 
   await rewardTeam(svc, home, result.homeScore, result.awayScore);
   await rewardTeam(svc, away, result.awayScore, result.homeScore);
 
-  return {};
+  return { result };
 }

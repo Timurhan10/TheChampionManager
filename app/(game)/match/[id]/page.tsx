@@ -6,6 +6,7 @@ import { isAdmin } from "@/lib/admin";
 import PageTopBar from "@/components/PageTopBar";
 import MatchCanvas from "@/components/MatchCanvas";
 import PreMatch from "@/components/PreMatch";
+import LiveMatch from "@/components/LiveMatch";
 import { teamBadge, hexToNumber } from "@/lib/utils";
 import type { MatchEvent } from "@/types/game";
 
@@ -33,13 +34,28 @@ export default async function MatchPage({ params }: { params: { id: string } }) 
 
   // Maç öncesi
   if (match.status === "scheduled") {
-    // Kullanıcının takımı sahadaysa ya da admin ise maçı şimdi oynayabilir.
+    // Kullanıcının takımı sahadaysa ya da admin ise maçı CANLI başlatıp izleyebilir.
     const isParticipant = team.id === match.home_team_id || team.id === match.away_team_id;
     const canPlay = isParticipant || (authId ? await isAdmin(supabase, authId) : false);
+    if (canPlay) {
+      return (
+        <>
+          <PageTopBar title="Canlı Maç" subtitle={`Hafta ${match.week ?? "-"}`} />
+          <LiveMatch
+            matchId={match.id}
+            homeName={homeName}
+            awayName={awayName}
+            homeColor={hexToNumber(home?.primary_color ?? "#3B82F6")}
+            awayColor={hexToNumber(away?.primary_color ?? "#EF4444")}
+            scheduledAt={match.scheduled_at}
+          />
+        </>
+      );
+    }
     return (
       <>
         <PageTopBar title="Maç" subtitle={`Hafta ${match.week ?? "-"}`} />
-        <PreMatch scheduledAt={match.scheduled_at} homeName={homeName} awayName={awayName} matchId={match.id} canPlay={canPlay} />
+        <PreMatch scheduledAt={match.scheduled_at} homeName={homeName} awayName={awayName} matchId={match.id} canPlay={false} />
       </>
     );
   }
