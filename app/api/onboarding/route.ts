@@ -88,7 +88,7 @@ export async function POST(req: Request) {
   }
 
   // 3) 25 oyuncuyu sunucuda üret (attribute/potansiyel/değer güvenli üretilir)
-  const rows = players.map((p) => {
+  const rows = players.map((p, i) => {
     const gen = generatePlayer({ name: p.name?.trim() || undefined, position: p.position });
     return {
       team_id: team.id,
@@ -98,6 +98,7 @@ export async function POST(req: Request) {
       is_youth_academy: false,
       potential: gen.potential,
       value_cr: gen.value_cr,
+      shirt_number: i + 1,
       ...gen.attributes,
     };
   });

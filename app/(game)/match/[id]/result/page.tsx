@@ -39,6 +39,7 @@ export default async function MatchResultPage({ params }: { params: { id: string
   const events: MatchEvent[] = Array.isArray(me) ? me : me?.events ?? [];
   const stats = me?.stats ?? null;
   const motm = me?.motm ?? null;
+  const ratings: { name: string; team: "home" | "away"; rating: number }[] = me?.ratings ?? [];
 
   if (match.status !== "finished") {
     return (
@@ -113,6 +114,32 @@ export default async function MatchResultPage({ params }: { params: { id: string
             <Link href="/league" className="block text-center mt-4 border border-border-cm text-sm py-2 rounded-lg hover:bg-panel-inset">← Lige Dön</Link>
           </div>
         </div>
+
+        {/* Oyuncu reytingleri */}
+        {ratings.length > 0 && (
+          <div className="mt-5">
+            <div className="section-label mb-2">Oyuncu Reytingleri</div>
+            <div className="grid grid-cols-2 gap-5">
+              {(["home", "away"] as const).map((side) => (
+                <div key={side}>
+                  <div className="text-xs font-semibold mb-1.5" style={{ color: side === "home" ? "#60A5FA" : "#EF4444" }}>
+                    {side === "home" ? homeName : awayName}
+                  </div>
+                  <div className="bg-panel border border-border-cm rounded-card divide-y divide-border-soft">
+                    {ratings.filter((r) => r.team === side).sort((a, b) => b.rating - a.rating).map((r, i) => (
+                      <div key={i} className="flex items-center justify-between px-4 py-2 text-sm">
+                        <span className="truncate">{r.name}</span>
+                        <span className="font-display font-bold" style={{ color: r.rating >= 7 ? "#10B981" : r.rating >= 5.5 ? "#F59E0B" : "#EF4444" }}>
+                          {r.rating.toFixed(1)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
