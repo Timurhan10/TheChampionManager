@@ -3,6 +3,8 @@ import { getGameContext } from "@/lib/data";
 import { createServiceClient } from "@/lib/supabase/server";
 import PageTopBar from "@/components/PageTopBar";
 import TacticsBoard from "@/components/TacticsBoard";
+import PlayerCompare, { type ComparePlayer } from "@/components/PlayerCompare";
+import { averageRating } from "@/lib/player-generator";
 import type { Player, Tactics } from "@/types/game";
 
 export default async function TacticsPage() {
@@ -16,11 +18,23 @@ export default async function TacticsPage() {
     supabase.from("tactics").select("*").eq("team_id", team.id).maybeSingle(),
   ]);
 
+  const list = (players ?? []) as Player[];
+  const comparePlayers: ComparePlayer[] = list.map((p) => ({
+    id: p.id, name: p.name, position: p.position, age: p.age, value_cr: p.value_cr,
+    overall: averageRating(p), potential: p.potential ?? null, attrs: p as any,
+  }));
+
   return (
     <>
       <PageTopBar title="Taktik Kurulum" subtitle="Diziliş & ayarlar — otomatik kaydedilir" />
       <div className="flex-1 overflow-y-auto p-[22px]">
-        <TacticsBoard players={(players ?? []) as Player[]} initial={(tactics as Tactics) ?? null} />
+        <TacticsBoard players={list} initial={(tactics as Tactics) ?? null} />
+
+        {comparePlayers.length >= 2 && (
+          <div className="mt-6 max-w-2xl">
+            <PlayerCompare players={comparePlayers} title="Oyuncu Karşılaştırma" />
+          </div>
+        )}
       </div>
     </>
   );

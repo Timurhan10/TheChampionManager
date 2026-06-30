@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 export default function PlayerActions({
-  playerId, isOwn, forSale, askingPrice, valueCr, isFreeAgent,
+  playerId, isOwn, forSale, askingPrice, valueCr, isFreeAgent, isYouth = false,
 }: {
   playerId: string;
   isOwn: boolean;
@@ -14,6 +14,7 @@ export default function PlayerActions({
   valueCr: number;
   sellerTeamId: string | null;
   isFreeAgent: boolean;
+  isYouth?: boolean;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
@@ -33,6 +34,14 @@ export default function PlayerActions({
   }
 
   if (isOwn) {
+    if (isYouth) {
+      return (
+        <div className="bg-panel-inset border border-border-cm rounded-lg p-3 text-center">
+          <div className="text-xs font-semibold text-amber mb-1">Alt Yapı Oyuncusu</div>
+          <p className="text-[11px] text-text-muted">Alt yapı oyuncuları satışa çıkarılamaz veya transfer edilemez.</p>
+        </div>
+      );
+    }
     return (
       <div className="space-y-2">
         {forSale ? (

@@ -43,7 +43,10 @@ export default function PlayerNameEdit({
 
   if (!editing) {
     return (
-      <button onClick={open} title="İsim ve forma numarasını düzenle" className="text-text-faint hover:text-emerald text-xs ml-1">✎</button>
+      <button onClick={open} title="İsim ve forma numarasını düzenle"
+        className="inline-flex items-center gap-1 ml-1 px-1.5 py-0.5 rounded border border-border-cm text-text-muted hover:text-emerald hover:border-emerald text-[10px] font-medium leading-none">
+        <span className="text-[11px]">✎</span> Düzenle
+      </button>
     );
   }
 

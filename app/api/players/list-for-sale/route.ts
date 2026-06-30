@@ -18,14 +18,19 @@ export async function POST(req: Request) {
 
   // Fiyat hesabı için performans alanlarını da çek (kolon yoksa value_cr ile devam)
   let player: any = null;
-  const sel = await svc.from("players").select("id, team_id, value_cr, matches_played, rating_sum").eq("id", body.playerId).maybeSingle();
+  const sel = await svc.from("players").select("id, team_id, value_cr, matches_played, rating_sum, is_youth_academy").eq("id", body.playerId).maybeSingle();
   if (sel.error) {
-    const fb = await svc.from("players").select("id, team_id, value_cr").eq("id", body.playerId).maybeSingle();
+    const fb = await svc.from("players").select("id, team_id, value_cr, is_youth_academy").eq("id", body.playerId).maybeSingle();
     player = fb.data;
   } else {
     player = sel.data;
   }
   if (!player || player.team_id !== team.id) return NextResponse.json({ error: "Bu oyuncu sana ait değil." }, { status: 403 });
+
+  // Alt yapı oyuncuları satılamaz (bedava üretildikleri için exploit önlenir).
+  if (body.forSale && player.is_youth_academy) {
+    return NextResponse.json({ error: "Alt yapı oyuncuları satışa çıkarılamaz." }, { status: 400 });
+  }
 
   if (body.forSale) {
     const price = computeSellPrice(player);
