@@ -65,24 +65,25 @@ export default async function TeamPage() {
               </div>
               <div className="bg-panel border border-border-cm rounded-card overflow-hidden">
                 {/* Başlık */}
-                <div className="grid grid-cols-[1.7fr_60px_70px_96px_76px] gap-2 px-4 py-2.5 border-b border-border-cm text-[10.5px] font-bold tracking-wide text-text-faint uppercase">
-                  <span>İsim</span><span>Yaş</span><span>Rating</span><span>Değer</span><span></span>
+                <div className="grid grid-cols-[1.7fr_44px_56px_84px_88px_72px] gap-2 px-3.5 py-2 border-b border-border-cm text-[10px] font-bold tracking-wide text-text-faint uppercase">
+                  <span>İsim</span><span className="text-center">Yaş</span><span className="text-center">Rating</span><span>Potansiyel</span><span className="text-right">Değer</span><span></span>
                 </div>
                 {grouped[pos].map((p) => {
                   const rating = averageRating(p);
                   return (
-                    <div key={p.id} className="grid grid-cols-[1.7fr_60px_70px_96px_76px] gap-2 px-4 py-2.5 items-center border-b border-border-soft last:border-0 hover:bg-panel-inset/50">
-                      <div className="flex items-center gap-2.5">
-                        <span className="num text-text-faint text-xs w-5 text-center shrink-0">{p.shirt_number ?? "—"}</span>
-                        <span className="w-7 h-7 rounded text-[10px] font-bold flex items-center justify-center" style={{ background: POSITION_COLORS[pos].bg, color: POSITION_COLORS[pos].color }}>{pos}</span>
-                        <span className="text-sm font-medium">{p.name}</span>
+                    <div key={p.id} className="grid grid-cols-[1.7fr_44px_56px_84px_88px_72px] gap-2 px-3.5 py-1.5 items-center border-b border-border-soft last:border-0 hover:bg-panel-inset/50">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="num text-text-faint text-[11px] w-5 text-center shrink-0">{p.shirt_number ?? "—"}</span>
+                        <span className="w-6 h-6 rounded text-[10px] font-bold flex items-center justify-center shrink-0" style={{ background: POSITION_COLORS[pos].bg, color: POSITION_COLORS[pos].color }}>{pos}</span>
+                        <span className="text-[13px] font-medium truncate">{p.name}</span>
+                        {p.is_youth_academy && <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-amber/15 text-amber shrink-0">ALT YAPI</span>}
                         <PlayerNameEdit playerId={p.id} name={p.name} shirtNumber={p.shirt_number ?? null} />
-                        {p.is_youth_academy && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber/15 text-amber">ALT YAPI</span>}
                       </div>
-                      <span className="text-sm text-text-2 num">{p.age}</span>
-                      <span className="font-display font-extrabold text-base" style={{ color: ratingColor(rating) }}>{rating}</span>
-                      <span className="text-sm text-text-2">{formatNumber(p.value_cr)} CR</span>
-                      <Link href={`/player/${p.id}`} className="text-xs text-center border border-border-cm py-1 rounded hover:bg-panel-inset">Profil</Link>
+                      <span className="text-[13px] text-text-2 num text-center">{p.age}</span>
+                      <span className="font-display font-extrabold text-[15px] text-center" style={{ color: ratingColor(rating) }}>{rating}</span>
+                      <PotentialStars potential={p.potential ?? null} />
+                      <span className="text-[12px] text-text-2 text-right">{formatNumber(p.value_cr)} CR</span>
+                      <Link href={`/player/${p.id}`} className="text-[11px] text-center border border-border-cm py-1 rounded hover:bg-panel-inset">Profil</Link>
                     </div>
                   );
                 })}
@@ -110,4 +111,18 @@ function Stat({ label, value, accent }: { label: string; value: string; accent?:
 
 function Divider() {
   return <div className="w-px h-9 bg-border-cm" />;
+}
+
+// Potansiyel (gizli 1-20) → 5 yıldız (yuvarlanmış).
+function PotentialStars({ potential }: { potential: number | null }) {
+  const filled = potential != null ? Math.max(0, Math.min(5, Math.round(potential / 4))) : 0;
+  return (
+    <div className="flex gap-0.5" title={potential != null ? `Potansiyel: ${filled}/5` : "Potansiyel bilinmiyor"}>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <svg key={i} width="11" height="11" viewBox="0 0 24 24" fill={i < filled ? "#F59E0B" : "none"} stroke={i < filled ? "#F59E0B" : "#475A73"} strokeWidth="2.5">
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+        </svg>
+      ))}
+    </div>
+  );
 }

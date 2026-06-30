@@ -20,12 +20,12 @@ export async function processSales(svc: SupabaseClient): Promise<{ processed: nu
   let listed: any[] | null = null;
   const full = await svc
     .from("players")
-    .select("id, team_id, value_cr, matches_played, rating_sum, age, position, listed_at, asking_price, name, teams(user_id, is_ai)")
+    .select("id, team_id, value_cr, matches_played, rating_sum, age, position, listed_at, asking_price, name, is_youth_academy, teams(user_id, is_ai)")
     .eq("for_sale", true);
   if (full.error) {
     const fb = await svc
       .from("players")
-      .select("id, team_id, value_cr, matches_played, rating_sum, age, position, asking_price, name, teams(user_id, is_ai)")
+      .select("id, team_id, value_cr, matches_played, rating_sum, age, position, asking_price, name, is_youth_academy, teams(user_id, is_ai)")
       .eq("for_sale", true);
     if (fb.error) return { processed: 0, sold: 0, paid: 0, reverted: 0 };
     listed = fb.data;
@@ -44,6 +44,12 @@ export async function processSales(svc: SupabaseClient): Promise<{ processed: nu
   for (const p of listed ?? []) {
     const team = (p as any).teams;
     if (!team || team.is_ai || !team.user_id) continue; // sadece insan takımları
+
+    // Alt yapı oyuncuları satılamaz; yanlışlıkla listelenmişse satıştan kaldır.
+    if ((p as any).is_youth_academy) {
+      await svc.from("players").update({ for_sale: false, asking_price: null }).eq("id", (p as any).id);
+      continue;
+    }
 
     const daysListed = (p as any).listed_at ? (now - new Date((p as any).listed_at).getTime()) / 86400000 : 99;
     const force = daysListed >= 2; // 3 gün garantisi

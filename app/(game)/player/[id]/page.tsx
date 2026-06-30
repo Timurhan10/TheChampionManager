@@ -128,6 +128,7 @@ export default async function PlayerProfilePage({ params }: { params: { id: stri
               valueCr={player.value_cr}
               sellerTeamId={player.team_id}
               isFreeAgent={player.team_id == null}
+              isYouth={player.is_youth_academy}
             />
           </div>
         </div>

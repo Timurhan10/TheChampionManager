@@ -15,9 +15,11 @@ export async function POST(req: Request) {
   const { data: buyer } = await svc.from("teams").select("id").eq("user_id", user.id).maybeSingle();
   if (!buyer) return NextResponse.json({ error: "Takım bulunamadı." }, { status: 400 });
 
-  const { data: player } = await svc.from("players").select("id, team_id, value_cr, asking_price, for_sale, name").eq("id", body.playerId).maybeSingle();
+  const { data: player } = await svc.from("players").select("id, team_id, value_cr, asking_price, for_sale, name, is_youth_academy").eq("id", body.playerId).maybeSingle();
   if (!player) return NextResponse.json({ error: "Oyuncu bulunamadı." }, { status: 404 });
   if (player.team_id === buyer.id) return NextResponse.json({ error: "Bu oyuncu zaten sende." }, { status: 400 });
+  // Alt yapı oyuncuları transfer edilemez.
+  if (player.is_youth_academy) return NextResponse.json({ error: "Alt yapı oyuncuları transfer edilemez." }, { status: 400 });
 
   const { data: gameUser } = await svc.from("users").select("credits").eq("id", user.id).single();
   if (!gameUser) return NextResponse.json({ error: "Kullanıcı bulunamadı." }, { status: 400 });
