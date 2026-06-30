@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getGameContext, getRevealedKeys } from "@/lib/data";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import PageTopBar from "@/components/PageTopBar";
 import IncomingOffers, { type Offer } from "@/components/IncomingOffers";
 import MarketSeedButton from "@/components/MarketSeedButton";
@@ -14,7 +14,7 @@ export default async function TransferMarketPage() {
   const { team } = await getGameContext();
   if (!team) redirect("/onboarding");
 
-  const supabase = createClient();
+  const supabase = createServiceClient();
 
   // Satıştaki oyuncular (başkalarının) + serbest ajanlar
   const [{ data: forSaleRows }, { data: freeAgents }, { data: myListings }] = await Promise.all([

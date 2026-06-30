@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getGameContext } from "@/lib/data";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import PageTopBar from "@/components/PageTopBar";
 import CmpShopClient, { type ShopItem } from "@/components/CmpShopClient";
 import { formatNumber } from "@/lib/utils";
@@ -9,7 +9,7 @@ export default async function CmpShopPage() {
   const { gameUser, team } = await getGameContext();
   if (!team) redirect("/onboarding");
 
-  const supabase = createClient();
+  const supabase = createServiceClient();
   const { data: items } = await supabase
     .from("cmp_shop_items")
     .select("id, name, description, tier, cmp_cost")

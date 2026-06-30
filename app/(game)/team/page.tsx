@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getGameContext } from "@/lib/data";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import PageTopBar from "@/components/PageTopBar";
 import TeamResetButton from "@/components/TeamResetButton";
 import PlayerNameEdit from "@/components/PlayerNameEdit";
@@ -17,7 +17,7 @@ export default async function TeamPage() {
   const { team } = await getGameContext();
   if (!team) redirect("/onboarding");
 
-  const supabase = createClient();
+  const supabase = createServiceClient();
   const [{ data: players }, editability] = await Promise.all([
     supabase.from("players").select("*").eq("team_id", team.id).order("position"),
     getTeamEditability(supabase, team.id),

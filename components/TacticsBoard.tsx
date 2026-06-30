@@ -93,20 +93,31 @@ export default function TacticsBoard({ players, initial }: { players: Player[]; 
   const usedIds = useMemo(() => new Set(Object.values(lineup).filter(Boolean)), [lineup]);
   const dragRef = useRef<DragItem | null>(null);
 
-  // Otomatik kayıt
+  // Taktiği kaydet (hem otomatik hem manuel buton kullanır)
+  async function saveTactics(): Promise<boolean> {
+    setSaveState("saving");
+    try {
+      const res = await fetch("/api/tactics/save", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ formation, mentality, pressing, tempo, pass_style: passStyle, lineup, substitutes: subs, player_instructions: instructions }),
+      });
+      const ok = res.ok;
+      setSaveState(ok ? "saved" : "idle");
+      if (ok) setTimeout(() => setSaveState("idle"), 1500);
+      return ok;
+    } catch {
+      setSaveState("idle");
+      return false;
+    }
+  }
+
+  // Otomatik kayıt (debounce)
   const firstRender = useRef(true);
   useEffect(() => {
     if (firstRender.current) { firstRender.current = false; return; }
-    setSaveState("saving");
-    const t = setTimeout(async () => {
-      await fetch("/api/tactics/save", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ formation, mentality, pressing, tempo, pass_style: passStyle, lineup, substitutes: subs, player_instructions: instructions }),
-      }).catch(() => {});
-      setSaveState("saved");
-      setTimeout(() => setSaveState("idle"), 1500);
-    }, 700);
+    const t = setTimeout(() => { saveTactics(); }, 700);
     return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formation, mentality, pressing, tempo, passStyle, lineup, subs, instructions]);
 
   function setInstr(pid: string, key: keyof PlayerInstruction, val: string) {
@@ -192,10 +203,11 @@ export default function TacticsBoard({ players, initial }: { players: Player[]; 
         <button onClick={autoFill} className="w-full mt-3 py-2 rounded-lg text-xs font-semibold bg-blue-cm/15 border border-blue-cm text-blue-cm-bright hover:bg-blue-cm/25">
           Otomatik Diz
         </button>
-        <div className="mt-3 text-[11px] text-text-faint">
-          {saveState === "saving" && "Kaydediliyor…"}
-          {saveState === "saved" && <span className="text-emerald">✓ Kaydedildi</span>}
-        </div>
+        <button onClick={() => saveTactics()} disabled={saveState === "saving"}
+          className="w-full mt-2 py-2.5 rounded-lg text-sm font-semibold bg-emerald text-emerald-ink hover:bg-emerald-bright disabled:opacity-60">
+          {saveState === "saving" ? "Kaydediliyor…" : saveState === "saved" ? "✓ Kaydedildi" : "Taktiği Kaydet"}
+        </button>
+        <div className="mt-2 text-[11px] text-text-faint text-center">Değişiklikler otomatik de kaydedilir.</div>
       </div>
 
       {/* Saha */}

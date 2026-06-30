@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getGameContext } from "@/lib/data";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import PageTopBar from "@/components/PageTopBar";
 import { AcademyToggle, IntakeButton } from "@/components/YouthAcademyClient";
 import { POSITION_COLORS } from "@/lib/attributes";
@@ -12,7 +12,7 @@ export default async function YouthAcademyPage() {
   const { team } = await getGameContext();
   if (!team) redirect("/onboarding");
 
-  const supabase = createClient();
+  const supabase = createServiceClient();
   const { data: academy } = await supabase.from("youth_academy").select("*").eq("team_id", team.id).maybeSingle();
   const { data: youthPlayers } = await supabase
     .from("players").select("*").eq("team_id", team.id).eq("is_youth_academy", true).order("created_at", { ascending: false });
