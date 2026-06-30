@@ -4,8 +4,19 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { averageRating } from "@/lib/player-generator";
 import { POSITION_COLORS, ratingColor } from "@/lib/attributes";
-import type { Player, Tactics, Position } from "@/types/game";
+import type { Player, Tactics, Position, PlayerInstruction } from "@/types/game";
 import { cn } from "@/lib/utils";
+
+// Oyuncu-bazlı talimat segmentleri
+const INSTR_SEGMENTS: { key: keyof PlayerInstruction; label: string; opts: [string, string][] }[] = [
+  { key: "role", label: "Rol", opts: [["attacking", "Hücum"], ["balanced", "Dengeli"], ["defensive", "Savunma"]] },
+  { key: "pressing", label: "Pressing", opts: [["low", "Düşük"], ["medium", "Orta"], ["high", "Yüksek"]] },
+  { key: "passing", label: "Pas", opts: [["short", "Kısa"], ["mixed", "Karma"], ["long", "Uzun"]] },
+  { key: "run", label: "Koşu", opts: [["forward", "İleri"], ["hold", "Tut"], ["wide", "Kanat"]] },
+  { key: "risk", label: "Risk", opts: [["low", "Düşük"], ["medium", "Orta"], ["high", "Yüksek"]] },
+  { key: "shooting", label: "Şut", opts: [["rare", "Az"], ["normal", "Normal"], ["often", "Sık"]] },
+];
+const INSTR_DEFAULT: Required<PlayerInstruction> = { role: "balanced", pressing: "medium", passing: "mixed", run: "hold", risk: "medium", shooting: "normal" };
 
 type Slot = { role: Position; x: number; y: number };
 
@@ -72,6 +83,8 @@ export default function TacticsBoard({ players, initial }: { players: Player[]; 
   const [passStyle, setPassStyle] = useState(initial?.pass_style ?? "mixed");
   const [lineup, setLineup] = useState<Record<string, string>>(initial?.lineup ?? {});
   const [subs, setSubs] = useState<string[]>(initial?.substitutes ?? []);
+  const [instructions, setInstructions] = useState<Record<string, PlayerInstruction>>(initial?.player_instructions ?? {});
+  const [instrFor, setInstrFor] = useState<string | null>(null); // talimat modalı açık oyuncu
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [pitchSize, setPitchSize] = useState<"sm" | "md">("sm");
 
@@ -88,13 +101,17 @@ export default function TacticsBoard({ players, initial }: { players: Player[]; 
     const t = setTimeout(async () => {
       await fetch("/api/tactics/save", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ formation, mentality, pressing, tempo, pass_style: passStyle, lineup, substitutes: subs }),
+        body: JSON.stringify({ formation, mentality, pressing, tempo, pass_style: passStyle, lineup, substitutes: subs, player_instructions: instructions }),
       }).catch(() => {});
       setSaveState("saved");
       setTimeout(() => setSaveState("idle"), 1500);
     }, 700);
     return () => clearTimeout(t);
-  }, [formation, mentality, pressing, tempo, passStyle, lineup, subs]);
+  }, [formation, mentality, pressing, tempo, passStyle, lineup, subs, instructions]);
+
+  function setInstr(pid: string, key: keyof PlayerInstruction, val: string) {
+    setInstructions((prev) => ({ ...prev, [pid]: { ...INSTR_DEFAULT, ...prev[pid], [key]: val } }));
+  }
 
   function placeInSlot(slotIdx: number, playerId: string) {
     setLineup((prev) => {
@@ -155,7 +172,10 @@ export default function TacticsBoard({ players, initial }: { players: Player[]; 
   const benchPlayers = players.filter((p) => !usedIds.has(p.id));
   const pitchW = pitchSize === "sm" ? "max-w-[360px]" : "max-w-[460px]";
 
+  const instrPlayer = instrFor ? byId.get(instrFor) : undefined;
+
   return (
+    <>
     <div className="grid grid-cols-[150px_1fr_240px] gap-4">
       {/* Diziliş */}
       <div>
@@ -216,9 +236,13 @@ export default function TacticsBoard({ players, initial }: { players: Player[]; 
                   {player ? (player.shirt_number ?? averageRating(player)) : slot.role}
                 </div>
                 {player ? (
-                  <Link href={`/player/${player.id}`} className="text-[9px] text-white/90 bg-black/40 rounded px-1 hover:text-emerald max-w-[78px] truncate">
-                    {shortName(player.name)}
-                  </Link>
+                  <div className="flex items-center gap-0.5">
+                    <Link href={`/player/${player.id}`} className="text-[9px] text-white/90 bg-black/40 rounded px-1 hover:text-emerald max-w-[64px] truncate">
+                      {shortName(player.name)}
+                    </Link>
+                    <button onClick={() => setInstrFor(player.id)} title="Talimatlar"
+                      className="text-[10px] bg-black/40 rounded px-1 text-white/80 hover:text-emerald">⚙</button>
+                  </div>
                 ) : (
                   <span className="text-[9px] text-white/40">{slot.role}</span>
                 )}
@@ -271,5 +295,41 @@ export default function TacticsBoard({ players, initial }: { players: Player[]; 
         </div>
       </div>
     </div>
+
+    {/* Oyuncu talimat modalı */}
+    {instrFor && instrPlayer && (
+      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setInstrFor(null)}>
+        <div className="bg-panel border border-border-cm rounded-card p-5 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <div className="font-display font-bold">{instrPlayer.name}</div>
+              <div className="text-xs text-text-muted">Oyuncu Talimatları</div>
+            </div>
+            <button onClick={() => setInstrFor(null)} className="text-text-faint hover:text-text-cm">✕</button>
+          </div>
+          <div className="space-y-3">
+            {INSTR_SEGMENTS.map((seg) => {
+              const cur = instructions[instrFor]?.[seg.key] ?? INSTR_DEFAULT[seg.key];
+              return (
+                <div key={seg.key}>
+                  <div className="section-label mb-1.5">{seg.label}</div>
+                  <div className="flex gap-1 bg-panel-inset rounded-lg p-1">
+                    {seg.opts.map(([val, label]) => (
+                      <button key={val} onClick={() => setInstr(instrFor, seg.key, val)}
+                        className={cn("flex-1 py-1.5 rounded text-[11px] font-semibold transition-colors",
+                          cur === val ? "bg-emerald text-emerald-ink" : "text-text-muted hover:text-text-cm")}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-[11px] text-text-faint mt-3">Değişiklikler otomatik kaydedilir.</p>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
