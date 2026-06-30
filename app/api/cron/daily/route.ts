@@ -21,15 +21,27 @@ export async function GET(req: Request) {
   const now = new Date().toISOString();
   const result: Record<string, unknown> = {};
 
-  // 1) Maçlar
+  // 1) Maçlar — insan maçları otomatik oynanmaz (kullanıcı canlı oynasın).
+  //    Yalnızca AI-vs-AI maçlar, ya da kullanıcı gelmediği için çok geciken (grace
+  //    penceresini aşan) maçlar otomatik tamamlanır; böylece lig tıkanmaz.
+  const GRACE_MS = 3 * 24 * 3600 * 1000; // 3 gün
   try {
-    const { data: due } = await svc.from("matches").select("id").eq("status", "scheduled").lte("scheduled_at", now);
-    let played = 0;
+    const { data: due } = await svc
+      .from("matches")
+      .select("id, home_team_id, away_team_id, scheduled_at")
+      .eq("status", "scheduled")
+      .lte("scheduled_at", now);
+    let played = 0, skippedHuman = 0;
     for (const m of due ?? []) {
+      const { data: ts } = await svc.from("teams").select("id, is_ai").in("id", [(m as any).home_team_id, (m as any).away_team_id]);
+      const anyHuman = (ts ?? []).some((t: any) => !t.is_ai);
+      const overdue = Date.now() - new Date((m as any).scheduled_at).getTime() > GRACE_MS;
+      if (anyHuman && !overdue) { skippedHuman++; continue; } // kullanıcı canlı oynayacak
       const r = await runMatch(svc, (m as any).id);
       if (!r.error && !r.skipped) played++;
     }
     result.matchesPlayed = played;
+    result.matchesSkippedHuman = skippedHuman;
   } catch (e: any) { result.matchesError = e.message; }
 
   // 2) Scouting

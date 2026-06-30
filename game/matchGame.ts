@@ -1,12 +1,17 @@
 // The Champion Manager — Phaser.js 2D maç sahnesi
 // Bu modül YALNIZCA client'ta dinamik import edilmelidir (Phaser window'a bağlıdır).
+//
+// Sahne kendi kendine "canlı" görünür: her karede 22 oyuncu topa göre konumlanır,
+// top bir oyuncudan diğerine paslanır gibi dolaşır (ambient akış). goal() gol anında
+// topu geçici olarak ele alır, sonra ambient akış devam eder.
 
 import Phaser from "phaser";
 
 const W = 800;
 const H = 600;
 
-// 4-3-3 benzeri sabit yerleşim (ev sahibi alt yarı, deplasman üst yarı)
+// 4-3-3 benzeri taban yerleşim (ev sahibi alt yarı, deplasman üst yarı).
+// Ev sahibi yukarı (y azalan) hücum eder; deplasman aşağı (y artan).
 const HOME_POS: [number, number][] = [
   [400, 545], // GK
   [140, 460], [300, 470], [500, 470], [660, 460], // DF
@@ -37,6 +42,14 @@ class MatchScene extends Phaser.Scene {
   scoreText!: Phaser.GameObjects.Text;
   clockText!: Phaser.GameObjects.Text;
 
+  // Ambient akış durumu
+  possession: "home" | "away" = "home";
+  ballTargetX = W / 2;
+  ballTargetY = H / 2;
+  ballControlled = false; // gol animasyonu sırasında true
+  passAccum = 0;
+  passInterval = 800;
+
   constructor() {
     super("match");
   }
@@ -61,44 +74,91 @@ class MatchScene extends Phaser.Scene {
     g.strokeRect(W / 2 - 110, 20, 220, 80);
     g.strokeRect(W / 2 - 110, H - 100, 220, 80);
 
-    // Oyuncular
+    // Oyuncular (idle tween yok — hareket update() içinde)
     HOME_POS.forEach(([x, y]) => {
       const dot = this.add.circle(x, y, 11, this.homeColor).setStrokeStyle(2, 0xffffff, 0.6);
       this.homeDots.push(dot);
-      this.idle(dot, x, y);
     });
     AWAY_POS.forEach(([x, y]) => {
       const dot = this.add.circle(x, y, 11, this.awayColor).setStrokeStyle(2, 0xffffff, 0.6);
       this.awayDots.push(dot);
-      this.idle(dot, x, y);
     });
 
     // Top
     this.ball = this.add.circle(W / 2, H / 2, 7, 0xffffff).setStrokeStyle(1, 0x000000, 0.3);
-    this.idleBall();
 
     // Skor + saat üst overlay
     this.scoreText = this.add.text(W / 2, 28, "0 - 0", { fontFamily: "monospace", fontSize: "26px", color: "#ffffff", fontStyle: "bold" }).setOrigin(0.5);
     this.clockText = this.add.text(W / 2, 56, "0'", { fontFamily: "monospace", fontSize: "14px", color: "#cbd5e1" }).setOrigin(0.5);
+
+    this.pickBallTarget();
   }
 
-  idle(dot: Phaser.GameObjects.Arc, baseX: number, baseY: number) {
-    this.tweens.add({
-      targets: dot,
-      x: baseX + Phaser.Math.Between(-14, 14),
-      y: baseY + Phaser.Math.Between(-14, 14),
-      duration: Phaser.Math.Between(900, 1600),
-      yoyo: true, repeat: -1, ease: "Sine.easeInOut",
-    });
+  // Topun yeni hedefini, topu elinde tutan takımın bir oyuncusuna doğru (hücum yönüne nudge'lı) seç.
+  pickBallTarget() {
+    const dots = this.possession === "home" ? this.homeDots : this.awayDots;
+    // Hücum oyuncularına (dizinin sonu) hafif ağırlık
+    const idx = Math.random() < 0.6 ? Phaser.Math.Between(5, dots.length - 1) : Phaser.Math.Between(1, dots.length - 1);
+    const p = dots[idx] ?? dots[0];
+    const attackDir = this.possession === "home" ? -1 : 1; // home yukarı
+    this.ballTargetX = Phaser.Math.Clamp(p.x + Phaser.Math.Between(-40, 40), 40, W - 40);
+    this.ballTargetY = Phaser.Math.Clamp(p.y + attackDir * Phaser.Math.Between(0, 70) + Phaser.Math.Between(-30, 30), 55, H - 55);
   }
 
-  idleBall() {
-    this.tweens.add({
-      targets: this.ball,
-      x: W / 2 + Phaser.Math.Between(-80, 80),
-      y: H / 2 + Phaser.Math.Between(-60, 60),
-      duration: 700, yoyo: true, repeat: -1, ease: "Sine.easeInOut",
-    });
+  update(_time: number, delta: number) {
+    if (!this.ballControlled) {
+      // Topu hedefe doğru yumuşakça taşı
+      const kb = Math.min(1, (delta / 1000) * 3.2);
+      this.ball.x += (this.ballTargetX - this.ball.x) * kb;
+      this.ball.y += (this.ballTargetY - this.ball.y) * kb;
+
+      // Pas zamanlayıcı: yeni hedef + ara sıra top kaybı
+      this.passAccum += delta;
+      if (this.passAccum >= this.passInterval) {
+        this.passAccum = 0;
+        this.passInterval = Phaser.Math.Between(550, 1100);
+        if (Math.random() < 0.22) this.possession = this.possession === "home" ? "away" : "home";
+        this.pickBallTarget();
+      }
+    }
+
+    this.moveTeam(this.homeDots, HOME_POS, this.possession === "home", -1, delta);
+    this.moveTeam(this.awayDots, AWAY_POS, this.possession === "away", 1, delta);
+  }
+
+  // Bir takımın oyuncularını taban pozisyon + topa çekim ile hareket ettirir.
+  moveTeam(
+    dots: Phaser.GameObjects.Arc[],
+    base: [number, number][],
+    attacking: boolean,
+    attackDir: number,
+    delta: number,
+  ) {
+    // Topa en yakın oyuncu (kaleci hariç) baskıya gider
+    let closest = -1, cd = Infinity;
+    for (let i = 1; i < dots.length; i++) {
+      const dx = dots[i].x - this.ball.x, dy = dots[i].y - this.ball.y;
+      const d = dx * dx + dy * dy;
+      if (d < cd) { cd = d; closest = i; }
+    }
+    const k = Math.min(1, (delta / 1000) * 2.2);
+    for (let i = 0; i < dots.length; i++) {
+      const [bx, by] = base[i];
+      let tx = bx, ty = by;
+      if (i === 0) {
+        // Kaleci: kendi kalesinde kalır, top x'ine hafif kayar
+        tx = bx + (this.ball.x - bx) * 0.05;
+      } else {
+        const pull = i === closest ? 0.62 : 0.15;
+        tx = bx + (this.ball.x - bx) * pull;
+        ty = by + (this.ball.y - by) * pull;
+        if (attacking) ty += attackDir * 16; // hücumda hattı ileri taşı
+      }
+      tx = Phaser.Math.Clamp(tx, 28, W - 28);
+      ty = Phaser.Math.Clamp(ty, 30, H - 30);
+      dots[i].x += (tx - dots[i].x) * k;
+      dots[i].y += (ty - dots[i].y) * k;
+    }
   }
 
   setScore(home: number, away: number) {
@@ -110,7 +170,8 @@ class MatchScene extends Phaser.Scene {
   }
 
   goal(team: "home" | "away") {
-    // Top hızla rakip kaleye + flash
+    // Top hızla rakip kaleye + flash; ambient akışı geçici durdur
+    this.ballControlled = true;
     const targetY = team === "home" ? 40 : H - 40;
     this.tweens.killTweensOf(this.ball);
     this.tweens.add({
@@ -126,7 +187,12 @@ class MatchScene extends Phaser.Scene {
             alpha: 0, duration: 900, onComplete: () => c.destroy(),
           });
         }
-        this.time.delayedCall(700, () => { this.ball.setPosition(W / 2, H / 2); this.idleBall(); });
+        this.time.delayedCall(700, () => {
+          this.ball.setPosition(W / 2, H / 2);
+          this.ballTargetX = W / 2; this.ballTargetY = H / 2;
+          this.passAccum = 0;
+          this.ballControlled = false;
+        });
       },
     });
   }

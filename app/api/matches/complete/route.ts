@@ -5,7 +5,7 @@ import { isAdmin } from "@/lib/admin";
 
 // Tek bir maçı simüle edip tamamlar. (Cron veya manuel tetikleme)
 export async function POST(req: Request) {
-  let body: { matchId: string };
+  let body: { matchId: string; returnResult?: boolean };
   try {
     body = await req.json();
   } catch {
@@ -43,5 +43,11 @@ export async function POST(req: Request) {
   const res = await runMatch(svc, body.matchId);
   if (res.error) return NextResponse.json({ error: res.error }, { status: 400 });
 
-  return NextResponse.json({ ok: true, skipped: res.skipped ?? false });
+  // Canlı maç için sonucu (skor + olay zaman çizelgesi) istemciye döndür; istemci
+  // 10 dk'lik canlı animasyonu bu sonuçtan oynatır.
+  return NextResponse.json({
+    ok: true,
+    skipped: res.skipped ?? false,
+    result: body.returnResult ? res.result ?? null : undefined,
+  });
 }
