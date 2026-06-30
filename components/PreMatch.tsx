@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import PlayMatchButton from "./PlayMatchButton";
 
 function diff(target: number) {
   const ms = Math.max(0, target - Date.now());
@@ -12,7 +13,7 @@ function diff(target: number) {
   return { d, h, m, s, done: ms === 0 };
 }
 
-export default function PreMatch({ scheduledAt, homeName, awayName }: { scheduledAt: string; homeName: string; awayName: string }) {
+export default function PreMatch({ scheduledAt, homeName, awayName, matchId, canPlay = false }: { scheduledAt: string; homeName: string; awayName: string; matchId?: string; canPlay?: boolean }) {
   const target = new Date(scheduledAt).getTime();
   const [t, setT] = useState(() => diff(target));
 
@@ -40,7 +41,14 @@ export default function PreMatch({ scheduledAt, homeName, awayName }: { schedule
         </div>
       )}
 
-      <Link href="/tactics" className="bg-emerald text-emerald-ink font-semibold px-6 py-2.5 rounded-lg hover:bg-emerald-bright">
+      {canPlay && matchId && (
+        <div className="mb-5">
+          <PlayMatchButton matchId={matchId} />
+          <p className="text-text-faint text-xs mt-2">Zamanı beklemeden maçı şimdi oynayıp izleyebilirsin.</p>
+        </div>
+      )}
+
+      <Link href="/tactics" className="border border-border-cm text-text-2 font-semibold px-6 py-2.5 rounded-lg hover:bg-panel-inset">
         Taktiği Hazırla
       </Link>
       <p className="text-text-faint text-xs mt-3">Taktiğini maça kadar serbestçe değiştirebilirsin.</p>

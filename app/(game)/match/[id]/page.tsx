@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { getGameContext } from "@/lib/data";
 import { createServiceClient } from "@/lib/supabase/server";
+import { isAdmin } from "@/lib/admin";
 import PageTopBar from "@/components/PageTopBar";
 import MatchCanvas from "@/components/MatchCanvas";
 import PreMatch from "@/components/PreMatch";
@@ -9,7 +10,7 @@ import { teamBadge, hexToNumber } from "@/lib/utils";
 import type { MatchEvent } from "@/types/game";
 
 export default async function MatchPage({ params }: { params: { id: string } }) {
-  const { team } = await getGameContext();
+  const { team, authId } = await getGameContext();
   if (!team) redirect("/onboarding");
 
   const supabase = createServiceClient();
@@ -32,10 +33,13 @@ export default async function MatchPage({ params }: { params: { id: string } }) 
 
   // Maç öncesi
   if (match.status === "scheduled") {
+    // Kullanıcının takımı sahadaysa ya da admin ise maçı şimdi oynayabilir.
+    const isParticipant = team.id === match.home_team_id || team.id === match.away_team_id;
+    const canPlay = isParticipant || (authId ? await isAdmin(supabase, authId) : false);
     return (
       <>
         <PageTopBar title="Maç" subtitle={`Hafta ${match.week ?? "-"}`} />
-        <PreMatch scheduledAt={match.scheduled_at} homeName={homeName} awayName={awayName} />
+        <PreMatch scheduledAt={match.scheduled_at} homeName={homeName} awayName={awayName} matchId={match.id} canPlay={canPlay} />
       </>
     );
   }

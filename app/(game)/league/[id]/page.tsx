@@ -6,6 +6,8 @@ import InviteCode from "@/components/InviteCode";
 import PageTopBar from "@/components/PageTopBar";
 import StartLeagueButton from "@/components/StartLeagueButton";
 import SeasonEndButton from "@/components/SeasonEndButton";
+import DeleteLeagueButton from "@/components/DeleteLeagueButton";
+import { isAdmin } from "@/lib/admin";
 import { LEAGUE_SIZE } from "@/lib/constants";
 import { teamBadge } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -23,7 +25,7 @@ interface Standing {
 }
 
 export default async function LeagueDetailPage({ params }: { params: { id: string } }) {
-  const { team } = await getGameContext();
+  const { team, authId } = await getGameContext();
   if (!team) redirect("/onboarding");
 
   // Lig/puan/fikstür herkese açık veridir; RLS durumundan bağımsız okumak için service client.
@@ -108,14 +110,23 @@ export default async function LeagueDetailPage({ params }: { params: { id: strin
   const finishedMatches = (matchRows ?? []).filter((m: any) => m.status === "finished").length;
   const allFinished = totalMatches > 0 && finishedMatches === totalMatches;
 
+  // Kullanıcının takımını içeren en erken bekleyen maç (matchRows zaten hafta/saat sıralı)
+  const nextMatch = (matchRows ?? []).find(
+    (m: any) => m.status === "scheduled" && (m.home_team_id === team.id || m.away_team_id === team.id)
+  );
+
+  // Ligi silebilir mi? (kurucu veya admin)
+  const canDelete = isCreator || (authId ? await isAdmin(supabase, authId) : false);
+
   return (
     <>
       <PageTopBar title={league.name} subtitle={`Sezon ${league.season_number}`} />
       <div className="flex-1 overflow-y-auto p-[22px]">
-        {/* Davet kodu — sağ üst, kopyalanabilir */}
-        {league.invite_code && (
-          <div className="flex justify-end mb-3">
-            <InviteCode code={league.invite_code} />
+        {/* Üst aksiyon çubuğu: davet kodu + (kurucu/admin) ligi sil */}
+        {(league.invite_code || canDelete) && (
+          <div className="flex justify-end items-center gap-3 mb-3">
+            {canDelete && <DeleteLeagueButton leagueId={league.id} leagueName={league.name} />}
+            {league.invite_code && <InviteCode code={league.invite_code} />}
           </div>
         )}
         {league.status === "waiting" && (
@@ -128,6 +139,18 @@ export default async function LeagueDetailPage({ params }: { params: { id: strin
                 <span className="ml-2 text-text-faint">Davet kodu: <span className="font-display tracking-wider text-text-2">{league.invite_code}</span></span>
               </div>
             )}
+          </div>
+        )}
+
+        {league.status === "active" && nextMatch && (
+          <div className="mb-5 bg-panel border border-emerald/40 rounded-card p-4 flex items-center justify-between gap-4">
+            <div className="text-sm text-text-2">
+              <span className="text-emerald font-semibold">Sıradaki maçın hazır.</span>{" "}
+              {teamName[nextMatch.home_team_id] ?? "—"} <span className="text-text-faint">vs</span> {teamName[nextMatch.away_team_id] ?? "—"}
+            </div>
+            <Link href={`/match/${nextMatch.id}`} className="bg-emerald text-emerald-ink font-semibold px-5 py-2.5 rounded-lg hover:bg-emerald-bright whitespace-nowrap">
+              Maçı Oyna & İzle →
+            </Link>
           </div>
         )}
 
@@ -215,7 +238,7 @@ export default async function LeagueDetailPage({ params }: { params: { id: strin
                         );
                         return finished
                           ? <Link key={m.id} href={`/match/${m.id}/result`}>{Row}</Link>
-                          : <div key={m.id}>{Row}</div>;
+                          : <Link key={m.id} href={`/match/${m.id}`}>{Row}</Link>;
                       })}
                     </div>
                   </div>
