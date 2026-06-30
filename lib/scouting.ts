@@ -21,7 +21,8 @@ export const SCOUT_PACKAGES: Record<ScoutLevelPkg, { cost: number; hours: number
   full: { cost: 5000, hours: 48, label: "Tam", desc: "48 saat · tüm özellikler" },
 };
 
-export const SCOUT_UPGRADE_COST = 30000;
+// Scout seviyesi yükseltme artık CMP ile yapılır (CR sadece arama için).
+export const SCOUT_UPGRADE_CMP = 300;
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];

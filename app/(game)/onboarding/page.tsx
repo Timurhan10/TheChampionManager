@@ -150,8 +150,8 @@ export default function OnboardingPage() {
           <div className="bg-panel border border-border-cm rounded-card p-7 shadow-card">
             <div className="flex items-center justify-between mb-1">
               <h2 className="font-display font-bold text-2xl">Kadronu Oluştur</h2>
-              <button onClick={() => setPlayers(defaultSquad())} className="text-xs text-blue-cm-bright hover:underline">
-                Tümünü Yeniden Üret
+              <button onClick={() => setPlayers(defaultSquad())} className="text-xs bg-blue-cm/15 border border-blue-cm text-blue-cm-bright px-3 py-1.5 rounded-lg hover:bg-blue-cm/25">
+                ⚡ Otomatik Kadro Oluştur
               </button>
             </div>
             <p className="text-text-muted text-sm mb-4">25 oyuncu — en az 1 GK, 4 DF, 4 MF, 3 FW.</p>

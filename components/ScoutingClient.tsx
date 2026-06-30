@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { SCOUT_PACKAGES, SCOUT_UPGRADE_COST, type ScoutLevelPkg } from "@/lib/scouting";
+import { SCOUT_PACKAGES, SCOUT_UPGRADE_CMP, type ScoutLevelPkg } from "@/lib/scouting";
 import { POSITION_COLORS } from "@/lib/attributes";
 import { formatNumber, cn } from "@/lib/utils";
 
@@ -34,7 +34,7 @@ export function ScoutLevelPanel({ level }: { level: number }) {
         {level < 3 && (
           <button onClick={upgrade} disabled={loading}
             className="bg-amber/15 border border-amber text-amber font-semibold px-4 py-2 rounded-lg hover:bg-amber/25 text-sm disabled:opacity-50">
-            {loading ? "..." : `Seviye Yükselt · ${formatNumber(SCOUT_UPGRADE_COST)} CR`}
+            {loading ? "..." : `Seviye Yükselt · ${formatNumber(SCOUT_UPGRADE_CMP)} CMP`}
           </button>
         )}
       </div>

@@ -3,6 +3,9 @@ import Link from "next/link";
 import { getGameContext } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import PageTopBar from "@/components/PageTopBar";
+import TeamResetButton from "@/components/TeamResetButton";
+import PlayerNameEdit from "@/components/PlayerNameEdit";
+import { getTeamEditability } from "@/lib/team-guard";
 import { averageRating } from "@/lib/player-generator";
 import { POSITION_COLORS, POSITION_LABELS, ratingColor } from "@/lib/attributes";
 import { formatCR, formatNumber } from "@/lib/utils";
@@ -15,13 +18,14 @@ export default async function TeamPage() {
   if (!team) redirect("/onboarding");
 
   const supabase = createClient();
-  const { data: players } = await supabase
-    .from("players")
-    .select("*")
-    .eq("team_id", team.id)
-    .order("position");
+  const [{ data: players }, editability] = await Promise.all([
+    supabase.from("players").select("*").eq("team_id", team.id).order("position"),
+    getTeamEditability(supabase, team.id),
+  ]);
 
   const list = (players ?? []) as Player[];
+  const editable = editability.editable;
+  const resetReason = editability.inActiveLeague ? "lig başladı" : editability.hasTransfers ? "transfer yapıldı" : undefined;
   const totalValue = list.reduce((sum, p) => sum + (p.value_cr ?? 0), 0);
 
   const grouped: Record<Position, Player[]> = { GK: [], DF: [], MF: [], FW: [] };
@@ -38,11 +42,13 @@ export default async function TeamPage() {
           <Stat label="Toplam Kadro Değeri" value={formatCR(totalValue)} accent="#10B981" />
           <Divider />
           <Stat label="Ortalama Yaş" value={`${list.length ? Math.round(list.reduce((s, p) => s + p.age, 0) / list.length) : 0}`} />
-          <div className="ml-auto flex gap-2">
+          <div className="ml-auto flex items-center gap-2">
+            <TeamResetButton editable={editable} reason={resetReason} />
             <Link href="/scouting" className="border border-blue-cm text-blue-cm-bright text-sm px-3 py-2 rounded-lg hover:bg-blue-cm/10">Scout Et</Link>
             <Link href="/transfer-market" className="bg-emerald text-emerald-ink text-sm font-semibold px-3 py-2 rounded-lg hover:bg-emerald-bright">Transfer Pazarı</Link>
           </div>
         </div>
+        {editable && <div className="text-xs text-text-muted mb-4 -mt-3">İsimleri düzenleyebilir veya takımı sıfırlayabilirsin (lig henüz başlamadı, transfer yok).</div>}
 
         {/* Pozisyona göre gruplu liste */}
         {ORDER.map((pos) => (
@@ -66,6 +72,7 @@ export default async function TeamPage() {
                       <div className="flex items-center gap-2.5">
                         <span className="w-7 h-7 rounded text-[10px] font-bold flex items-center justify-center" style={{ background: POSITION_COLORS[pos].bg, color: POSITION_COLORS[pos].color }}>{pos}</span>
                         <span className="text-sm font-medium">{p.name}</span>
+                        {editable && <PlayerNameEdit playerId={p.id} name={p.name} />}
                         {p.is_youth_academy && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber/15 text-amber">ALT YAPI</span>}
                       </div>
                       <span className="text-sm text-text-2 num">{p.age}</span>

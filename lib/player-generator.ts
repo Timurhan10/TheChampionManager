@@ -64,14 +64,35 @@ export interface GenerateOptions {
   // Attribute üretim aralığı (varsayılan 8-12; AI takımları 8-14 kullanabilir)
   attrMin?: number;
   attrMax?: number;
+  // Kalite katmanı verilirse attrMin/attrMax ondan gelir (transfer/serbest oyuncular).
+  tier?: QualityTier;
+}
+
+// --- Kalite katmanları (Model A — Dengeli): %55 / %28 / %12 / %5 ---
+export type QualityTier = "common" | "decent" | "good" | "elite";
+
+const TIER_RANGES: Record<QualityTier, [number, number]> = {
+  common: [7, 11],
+  decent: [10, 13],
+  good: [12, 15],
+  elite: [14, 18],
+};
+
+export function rollQualityTier(): QualityTier {
+  const r = Math.random() * 100;
+  if (r < 55) return "common";
+  if (r < 83) return "decent"; // 55 + 28
+  if (r < 95) return "good"; // + 12
+  return "elite"; // + 5
 }
 
 export function generatePlayer(opts: GenerateOptions): GeneratedPlayer {
   const position = opts.position;
   const isYouth = opts.isYouth ?? false;
   const age = opts.age ?? (isYouth ? randInt(16, 19) : randInt(18, 33));
-  const attrMin = opts.attrMin ?? 8;
-  const attrMax = opts.attrMax ?? 12;
+  const [tierMin, tierMax] = opts.tier ? TIER_RANGES[opts.tier] : [undefined, undefined];
+  const attrMin = opts.attrMin ?? tierMin ?? 8;
+  const attrMax = opts.attrMax ?? tierMax ?? 12;
 
   const attributes: Record<string, number | null> = {};
 
