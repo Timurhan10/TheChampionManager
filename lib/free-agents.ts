@@ -45,7 +45,7 @@ export async function topUpFreeAgents(svc: SupabaseClient, target = FREE_AGENT_T
   return need;
 }
 
-const REFRESH_INTERVAL_MS = 12 * 60 * 60 * 1000; // 12 saat
+const REFRESH_INTERVAL_MS = 10 * 60 * 1000; // 10 dakika — pazar sık tazelensin
 const ROTATE_BATCH = 10;
 
 // Pazarı 12 saatte bir rotasyona sokar: en eski "boşta" serbest ajanları silip
