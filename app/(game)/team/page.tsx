@@ -48,7 +48,10 @@ export default async function TeamPage() {
             <Link href="/transfer-market" className="bg-emerald text-emerald-ink text-sm font-semibold px-3 py-2 rounded-lg hover:bg-emerald-bright">Transfer Pazarı</Link>
           </div>
         </div>
-        {editable && <div className="text-xs text-text-muted mb-4 -mt-3">İsimleri düzenleyebilir veya takımı sıfırlayabilirsin (lig henüz başlamadı, transfer yok).</div>}
+        <div className="text-xs text-text-muted mb-4 -mt-3">
+          Oyuncu adına/forma numarasına tıklayıp (✎) istediğin zaman düzenleyebilirsin.
+          {editable && " Takımı sıfırlama da açık (lig henüz başlamadı, transfer yok)."}
+        </div>
 
         {/* Pozisyona göre gruplu liste */}
         {ORDER.map((pos) => (
@@ -73,7 +76,7 @@ export default async function TeamPage() {
                         <span className="num text-text-faint text-xs w-5 text-center shrink-0">{p.shirt_number ?? "—"}</span>
                         <span className="w-7 h-7 rounded text-[10px] font-bold flex items-center justify-center" style={{ background: POSITION_COLORS[pos].bg, color: POSITION_COLORS[pos].color }}>{pos}</span>
                         <span className="text-sm font-medium">{p.name}</span>
-                        {editable && <PlayerNameEdit playerId={p.id} name={p.name} />}
+                        <PlayerNameEdit playerId={p.id} name={p.name} shirtNumber={p.shirt_number ?? null} />
                         {p.is_youth_academy && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber/15 text-amber">ALT YAPI</span>}
                       </div>
                       <span className="text-sm text-text-2 num">{p.age}</span>
