@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { averageRating } from "@/lib/player-generator";
 import { POSITION_COLORS, ratingColor } from "@/lib/attributes";
 import type { Player, Tactics, Position } from "@/types/game";
@@ -8,7 +9,6 @@ import { cn } from "@/lib/utils";
 
 type Slot = { role: Position; x: number; y: number };
 
-// Diziliş slot yerleşimleri (saha % konumları; ev sahibi yukarı hücum)
 const FORMATIONS: Record<string, Slot[]> = {
   "4-4-2": [
     { role: "GK", x: 50, y: 92 },
@@ -62,22 +62,25 @@ function shortName(name: string): string {
   return parts.length > 1 ? `${parts[0][0]}. ${parts[parts.length - 1]}` : name;
 }
 
+interface DragItem { playerId: string; from: "bench" | number; }
+
 export default function TacticsBoard({ players, initial }: { players: Player[]; initial: Tactics | null }) {
   const [formation, setFormation] = useState(initial?.formation ?? "4-4-2");
   const [mentality, setMentality] = useState(initial?.mentality ?? "balanced");
   const [pressing, setPressing] = useState(initial?.pressing ?? "medium");
   const [tempo, setTempo] = useState(initial?.tempo ?? "normal");
   const [passStyle, setPassStyle] = useState(initial?.pass_style ?? "mixed");
-  // lineup: slotIndex -> playerId
   const [lineup, setLineup] = useState<Record<string, string>>(initial?.lineup ?? {});
   const [subs, setSubs] = useState<string[]>(initial?.substitutes ?? []);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const [pitchSize, setPitchSize] = useState<"sm" | "md">("sm");
 
   const slots = FORMATIONS[formation];
   const byId = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
   const usedIds = useMemo(() => new Set(Object.values(lineup).filter(Boolean)), [lineup]);
+  const dragRef = useRef<DragItem | null>(null);
 
-  // Otomatik kayıt (debounce)
+  // Otomatik kayıt
   const firstRender = useRef(true);
   useEffect(() => {
     if (firstRender.current) { firstRender.current = false; return; }
@@ -93,10 +96,9 @@ export default function TacticsBoard({ players, initial }: { players: Player[]; 
     return () => clearTimeout(t);
   }, [formation, mentality, pressing, tempo, passStyle, lineup, subs]);
 
-  function assign(slotIdx: number, playerId: string) {
+  function placeInSlot(slotIdx: number, playerId: string) {
     setLineup((prev) => {
       const next = { ...prev };
-      // Aynı oyuncu başka slotta varsa temizle
       for (const k of Object.keys(next)) if (next[k] === playerId) delete next[k];
       if (playerId) next[String(slotIdx)] = playerId; else delete next[String(slotIdx)];
       return next;
@@ -104,15 +106,58 @@ export default function TacticsBoard({ players, initial }: { players: Player[]; 
     setSubs((prev) => prev.filter((id) => id !== playerId));
   }
 
-  function toggleSub(playerId: string) {
-    setSubs((prev) => prev.includes(playerId) ? prev.filter((id) => id !== playerId) : prev.length >= 7 ? prev : [...prev, playerId]);
+  function removeFromLineup(playerId: string) {
+    setLineup((prev) => {
+      const next = { ...prev };
+      for (const k of Object.keys(next)) if (next[k] === playerId) delete next[k];
+      return next;
+    });
+  }
+
+  // --- Drag & drop ---
+  function onDragStart(item: DragItem) { dragRef.current = item; }
+  function onDropSlot(slotIdx: number) {
+    const item = dragRef.current;
+    if (!item) return;
+    const target = lineup[String(slotIdx)];
+    if (typeof item.from === "number") {
+      // Slot ↔ slot takas
+      setLineup((prev) => {
+        const next = { ...prev };
+        next[String(slotIdx)] = item.playerId;
+        if (target) next[String(item.from)] = target; else delete next[String(item.from)];
+        return next;
+      });
+    } else {
+      placeInSlot(slotIdx, item.playerId); // yedekten geldi
+    }
+    dragRef.current = null;
+  }
+  function onDropBench() {
+    const item = dragRef.current;
+    if (item && typeof item.from === "number") removeFromLineup(item.playerId);
+    dragRef.current = null;
+  }
+
+  function autoFill() {
+    // Pozisyona uygun, en yüksek rating'li 11 oyuncuyu otomatik yerleştir
+    const next: Record<string, string> = {};
+    const used = new Set<string>();
+    const pool = [...players].sort((a, b) => averageRating(b) - averageRating(a));
+    slots.forEach((slot, i) => {
+      let pick = pool.find((p) => !used.has(p.id) && p.position === slot.role);
+      if (!pick) pick = pool.find((p) => !used.has(p.id));
+      if (pick) { next[String(i)] = pick.id; used.add(pick.id); }
+    });
+    setLineup(next);
   }
 
   const benchPlayers = players.filter((p) => !usedIds.has(p.id));
+  const pitchW = pitchSize === "sm" ? "max-w-[360px]" : "max-w-[460px]";
 
   return (
-    <div className="grid grid-cols-[150px_1fr_226px] gap-4">
-      {/* Diziliş seçimi */}
+    <div className="grid grid-cols-[150px_1fr_240px] gap-4">
+      {/* Diziliş */}
       <div>
         <div className="section-label mb-2">Diziliş</div>
         <div className="space-y-1.5">
@@ -124,51 +169,65 @@ export default function TacticsBoard({ players, initial }: { players: Player[]; 
             </button>
           ))}
         </div>
-        <div className="mt-4 text-[11px] text-text-faint">
+        <button onClick={autoFill} className="w-full mt-3 py-2 rounded-lg text-xs font-semibold bg-blue-cm/15 border border-blue-cm text-blue-cm-bright hover:bg-blue-cm/25">
+          Otomatik Diz
+        </button>
+        <div className="mt-3 text-[11px] text-text-faint">
           {saveState === "saving" && "Kaydediliyor…"}
           {saveState === "saved" && <span className="text-emerald">✓ Kaydedildi</span>}
         </div>
       </div>
 
       {/* Saha */}
-      <div>
-        <div className="relative w-full aspect-[3/4] rounded-card overflow-hidden border border-border-cm"
-          style={{ background: "repeating-linear-gradient(180deg, #0f3d2a 0px, #0f3d2a 36px, #0d3525 36px, #0d3525 72px)" }}>
-          {/* Çizgiler */}
+      <div className="flex flex-col items-center">
+        <div className="flex items-center gap-2 mb-2 self-end">
+          <span className="text-[11px] text-text-faint">Saha:</span>
+          {(["sm", "md"] as const).map((s) => (
+            <button key={s} onClick={() => setPitchSize(s)}
+              className={cn("px-2 py-0.5 rounded text-[11px] font-semibold", pitchSize === s ? "bg-emerald text-emerald-ink" : "bg-panel-inset text-text-muted")}>
+              {s === "sm" ? "Küçük" : "Büyük"}
+            </button>
+          ))}
+        </div>
+
+        <div className={cn("relative w-full aspect-[3/4] rounded-card overflow-hidden border border-border-cm", pitchW)}
+          style={{ background: "repeating-linear-gradient(180deg, #0f3d2a 0px, #0f3d2a 36px, #0d3525 36px, #0d3525 72px)" }}
+          onDragOver={(e) => e.preventDefault()} onDrop={onDropBench}>
           <div className="absolute inset-3 border-2 border-white/20 rounded" />
           <div className="absolute left-3 right-3 top-1/2 h-0.5 bg-white/20" />
           <div className="absolute left-1/2 top-1/2 w-16 h-16 -translate-x-1/2 -translate-y-1/2 border-2 border-white/20 rounded-full" />
-          <div className="absolute left-1/4 right-1/4 top-3 h-10 border-2 border-t-0 border-white/20" />
-          <div className="absolute left-1/4 right-1/4 bottom-3 h-10 border-2 border-b-0 border-white/20" />
+          <div className="absolute left-1/4 right-1/4 top-3 h-9 border-2 border-t-0 border-white/20" />
+          <div className="absolute left-1/4 right-1/4 bottom-3 h-9 border-2 border-b-0 border-white/20" />
 
           {slots.map((slot, i) => {
             const pid = lineup[String(i)];
             const player = pid ? byId.get(pid) : undefined;
             const color = POSITION_COLORS[slot.role];
             return (
-              <div key={i} className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1"
-                style={{ left: `${slot.x}%`, top: `${slot.y}%` }}>
-                <div className="w-10 h-10 rounded-full flex items-center justify-center text-[10px] font-bold border-2"
+              <div key={i} className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-0.5"
+                style={{ left: `${slot.x}%`, top: `${slot.y}%` }}
+                onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.stopPropagation(); onDropSlot(i); }}>
+                <div
+                  draggable={!!player}
+                  onDragStart={() => player && onDragStart({ playerId: player.id, from: i })}
+                  className="w-9 h-9 rounded-full flex items-center justify-center text-[10px] font-bold border-2 cursor-grab active:cursor-grabbing"
                   style={{ background: "#0C1524", borderColor: color.color, color: player ? "#F1F5F9" : color.color }}>
                   {player ? averageRating(player) : slot.role}
                 </div>
-                {/* Oyuncu seçici */}
-                <select value={pid ?? ""} onChange={(e) => assign(i, e.target.value)}
-                  className="max-w-[88px] text-[10px] bg-black/40 text-white rounded px-1 py-0.5 outline-none border border-white/10 text-center cursor-pointer">
-                  <option value="">{slot.role} — boş</option>
-                  {players.map((p) => (
-                    <option key={p.id} value={p.id} disabled={usedIds.has(p.id) && p.id !== pid}>
-                      {p.position} {shortName(p.name)} ({averageRating(p)})
-                    </option>
-                  ))}
-                </select>
+                {player ? (
+                  <Link href={`/player/${player.id}`} className="text-[9px] text-white/90 bg-black/40 rounded px-1 hover:text-emerald max-w-[78px] truncate">
+                    {shortName(player.name)}
+                  </Link>
+                ) : (
+                  <span className="text-[9px] text-white/40">{slot.role}</span>
+                )}
               </div>
             );
           })}
           <div className="absolute bottom-2 left-2 text-xs font-display font-bold px-2 py-1 rounded bg-black/40">{formation}</div>
         </div>
         <div className="mt-1.5 text-[11px] text-text-faint text-center">
-          Seçili oyuncu: {usedIds.size}/11 · Slotlardan oyuncu ata. Maça kadar serbestçe değiştirilebilir.
+          Seçili: {usedIds.size}/11 · Yedekten sahaya <b>sürükle</b>, isimle profile gir. Maça kadar serbest.
         </div>
       </div>
 
@@ -194,23 +253,19 @@ export default function TacticsBoard({ players, initial }: { players: Player[]; 
           );
         })}
 
-        <div>
-          <div className="section-label mb-1.5">Yedekler ({subs.length}/7)</div>
-          <div className="space-y-1 max-h-[180px] overflow-y-auto pr-1">
-            {benchPlayers.map((p) => {
-              const active = subs.includes(p.id);
-              return (
-                <button key={p.id} onClick={() => toggleSub(p.id)}
-                  className={cn("w-full flex items-center justify-between px-2 py-1.5 rounded text-[11px] transition-colors border",
-                    active ? "bg-emerald/15 border-emerald" : "bg-panel-inset border-transparent hover:border-border-cm")}>
-                  <span className="flex items-center gap-1.5 truncate">
-                    <span className="w-4 h-4 rounded text-[8px] font-bold flex items-center justify-center" style={{ background: POSITION_COLORS[p.position].bg, color: POSITION_COLORS[p.position].color }}>{p.position}</span>
-                    <span className="truncate">{shortName(p.name)}</span>
-                  </span>
-                  <span className="font-display font-bold" style={{ color: ratingColor(averageRating(p)) }}>{averageRating(p)}</span>
-                </button>
-              );
-            })}
+        <div onDragOver={(e) => e.preventDefault()} onDrop={onDropBench}>
+          <div className="section-label mb-1.5">Yedek Kulübesi ({benchPlayers.length})</div>
+          <div className="space-y-1 max-h-[240px] overflow-y-auto pr-1">
+            {benchPlayers.map((p) => (
+              <div key={p.id} draggable onDragStart={() => onDragStart({ playerId: p.id, from: "bench" })}
+                className="w-full flex items-center justify-between px-2 py-1.5 rounded text-[11px] bg-panel-inset border border-transparent hover:border-border-cm cursor-grab active:cursor-grabbing">
+                <span className="flex items-center gap-1.5 truncate">
+                  <span className="w-4 h-4 rounded text-[8px] font-bold flex items-center justify-center" style={{ background: POSITION_COLORS[p.position].bg, color: POSITION_COLORS[p.position].color }}>{p.position}</span>
+                  <Link href={`/player/${p.id}`} className="truncate hover:text-emerald" onClick={(e) => e.stopPropagation()}>{shortName(p.name)}</Link>
+                </span>
+                <span className="font-display font-bold" style={{ color: ratingColor(averageRating(p)) }}>{averageRating(p)}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
