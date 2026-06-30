@@ -7,6 +7,7 @@ import IncomingOffers, { type Offer } from "@/components/IncomingOffers";
 import MarketSeedButton from "@/components/MarketSeedButton";
 import MarketAutoRefresh from "@/components/MarketAutoRefresh";
 import ProcessSalesButton from "@/components/ProcessSalesButton";
+import PlayerCompare, { type ComparePlayer } from "@/components/PlayerCompare";
 import { averageRating } from "@/lib/player-generator";
 import { POSITION_COLORS, ratingColor } from "@/lib/attributes";
 import { formatNumber, teamBadge } from "@/lib/utils";
@@ -36,6 +37,17 @@ export default async function TransferMarketPage() {
 
   // Scout durumu
   const revealed = await getRevealedKeys(supabase, team.id, listed.map((p) => p.id));
+
+  // Karşılaştırma (özet — gizli özellik sızdırmaz; rating yalnız scout edilmişse)
+  const marketCompare: ComparePlayer[] = listed.map((p) => {
+    const scouted = (revealed.get(p.id)?.size ?? 0) > 0;
+    return {
+      id: p.id, name: p.name, position: p.position, age: p.age,
+      value_cr: p.asking_price ?? p.value_cr,
+      overall: scouted ? averageRating(p) : null,
+      potential: null, attrs: null,
+    };
+  });
 
   // Gelen teklifler (kendi oyuncularıma)
   const { data: offerRows } = await supabase
@@ -101,6 +113,12 @@ export default async function TransferMarketPage() {
                 );
               })}
             </div>
+
+            {marketCompare.length >= 2 && (
+              <div className="mt-5">
+                <PlayerCompare players={marketCompare} title="Oyuncu Karşılaştırma (alım öncesi)" />
+              </div>
+            )}
           </div>
 
           {/* Sağ panel */}

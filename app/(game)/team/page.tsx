@@ -5,6 +5,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import PageTopBar from "@/components/PageTopBar";
 import TeamResetButton from "@/components/TeamResetButton";
 import PlayerNameEdit from "@/components/PlayerNameEdit";
+import PlayerCompare, { type ComparePlayer } from "@/components/PlayerCompare";
 import { getTeamEditability } from "@/lib/team-guard";
 import { averageRating } from "@/lib/player-generator";
 import { POSITION_COLORS, POSITION_LABELS, ratingColor } from "@/lib/attributes";
@@ -30,6 +31,12 @@ export default async function TeamPage() {
 
   const grouped: Record<Position, Player[]> = { GK: [], DF: [], MF: [], FW: [] };
   for (const p of list) grouped[p.position].push(p);
+
+  // Karşılaştırma için kendi oyuncular (tüm özellikler bilinir)
+  const comparePlayers: ComparePlayer[] = list.map((p) => ({
+    id: p.id, name: p.name, position: p.position, age: p.age, value_cr: p.value_cr,
+    overall: averageRating(p), potential: p.potential ?? null, attrs: p as any,
+  }));
 
   return (
     <>
@@ -94,6 +101,12 @@ export default async function TeamPage() {
 
         {list.length === 0 && (
           <div className="text-center py-20 text-text-muted">Henüz oyuncu yok.</div>
+        )}
+
+        {comparePlayers.length >= 2 && (
+          <div className="mt-6 max-w-2xl">
+            <PlayerCompare players={comparePlayers} title="Oyuncu Karşılaştırma" />
+          </div>
         )}
       </div>
     </>
