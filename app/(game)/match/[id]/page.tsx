@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { getGameContext } from "@/lib/data";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import PageTopBar from "@/components/PageTopBar";
 import MatchCanvas from "@/components/MatchCanvas";
 import PreMatch from "@/components/PreMatch";
@@ -12,7 +12,7 @@ export default async function MatchPage({ params }: { params: { id: string } }) 
   const { team } = await getGameContext();
   if (!team) redirect("/onboarding");
 
-  const supabase = createClient();
+  const supabase = createServiceClient();
   const { data: match } = await supabase
     .from("matches")
     .select("id, status, home_score, away_score, match_events, home_team_id, away_team_id, scheduled_at, week")
