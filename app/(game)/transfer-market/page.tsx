@@ -4,6 +4,7 @@ import { getGameContext, getRevealedKeys } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import PageTopBar from "@/components/PageTopBar";
 import IncomingOffers, { type Offer } from "@/components/IncomingOffers";
+import MarketSeedButton from "@/components/MarketSeedButton";
 import { averageRating } from "@/lib/player-generator";
 import { POSITION_COLORS, ratingColor } from "@/lib/attributes";
 import { formatNumber, teamBadge } from "@/lib/utils";
@@ -65,7 +66,10 @@ export default async function TransferMarketPage() {
         <div className="grid grid-cols-[1fr_300px] gap-5">
           {/* Liste */}
           <div>
-            <div className="section-label mb-2">Satıştaki Oyuncular & Serbest Ajanlar</div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="section-label">Satıştaki Oyuncular & Serbest Ajanlar</span>
+              <MarketSeedButton />
+            </div>
             <div className="bg-panel border border-border-cm rounded-card overflow-hidden">
               <div className="grid grid-cols-[1.6fr_48px_1fr_90px_100px_84px] gap-2 px-4 py-2.5 border-b border-border-cm text-[10px] font-bold text-text-faint uppercase">
                 <span>İsim</span><span>Yaş</span><span>Takım</span><span>Rating</span><span>Değer</span><span></span>

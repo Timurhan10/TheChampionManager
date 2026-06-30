@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { LEAGUE_SIZE } from "./constants";
 import { generateAiTeamName, generateAiSquad, randomTeamColors } from "./ai-team-generator";
 import { generateSchedule, type MatchDay } from "./schedule-generator";
+import { topUpFreeAgents, listAiPlayersForSale } from "./free-agents";
 
 // Verilen lig için AI takımları üretip LEAGUE_SIZE'a tamamlar, fikstürü oluşturur.
 export async function activateLeague(svc: SupabaseClient, leagueId: string): Promise<{ error?: string }> {
@@ -52,6 +53,9 @@ export async function activateLeague(svc: SupabaseClient, leagueId: string): Pro
     // Varsayılan taktik (AI: dengeli 4-4-2 orta pressing)
     await svc.from("tactics").insert({ team_id: aiTeam.id, formation: "4-4-2" });
 
+    // AI takımı 2-3 oyuncusunu satışa çıkarsın
+    await listAiPlayersForSale(svc, aiTeam.id);
+
     newTeamIds.push(aiTeam.id);
   }
 
@@ -61,6 +65,9 @@ export async function activateLeague(svc: SupabaseClient, leagueId: string): Pro
       newTeamIds.map((tid) => ({ league_id: leagueId, team_id: tid }))
     );
   }
+
+  // Serbest oyuncu havuzunu hedefe tamamla (transfer pazarı boş kalmasın)
+  await topUpFreeAgents(svc);
 
   const allTeamIds = [...currentTeamIds, ...newTeamIds];
 
