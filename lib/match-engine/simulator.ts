@@ -84,20 +84,30 @@ function startingEleven(team: EngineTeam): Player[] {
   return eleven.slice(0, 11);
 }
 
-function teamAttack(eleven: Player[]): number {
+type InstrMap = Record<string, { role?: string; risk?: string; shooting?: string } | undefined>;
+
+// Oyuncu-bazlı rol etkisi (mütevazı)
+function roleAttMult(role?: string): number {
+  return role === "attacking" ? 1.2 : role === "defensive" ? 0.85 : 1;
+}
+function roleDefMult(role?: string): number {
+  return role === "defensive" ? 1.2 : role === "attacking" ? 0.85 : 1;
+}
+
+function teamAttack(eleven: Player[], instr: InstrMap = {}): number {
   let sum = 0, w = 0;
   for (const p of eleven) {
-    const weight = ATT_W[p.position];
+    const weight = ATT_W[p.position] * roleAttMult(instr[p.id]?.role);
     sum += weight * mean(p, OFF_ATTRS);
     w += weight;
   }
   return w ? sum / w : 10;
 }
 
-function teamDefense(eleven: Player[]): number {
+function teamDefense(eleven: Player[], instr: InstrMap = {}): number {
   let sum = 0, w = 0;
   for (const p of eleven) {
-    const weight = DEF_W[p.position];
+    const weight = DEF_W[p.position] * roleDefMult(instr[p.id]?.role);
     const attrs = p.position === "GK" ? GK_ATTRS : DEF_ATTRS;
     sum += weight * mean(p, attrs);
     w += weight;
@@ -143,10 +153,11 @@ function expectedGoals(att: number, oppDef: number, mentAtt: number, press: numb
   return Math.max(0.15, Math.min(4.5, xg));
 }
 
-// Gol atan oyuncuyu pozisyon + şut ağırlığıyla seç
-function pickScorer(eleven: Player[]): Player {
+// Gol atan oyuncuyu pozisyon + şut ağırlığıyla seç (oyuncu talimatları etkiler)
+function pickScorer(eleven: Player[], instr: InstrMap = {}): Player {
   const posW: Record<Position, number> = { FW: 5, MF: 3, DF: 1, GK: 0 };
-  const weights = eleven.map((p) => posW[p.position] * (1 + mean(p, ["shooting", "off_the_ball"]) / 20));
+  const shootMult = (s?: string) => (s === "often" ? 1.3 : s === "rare" ? 0.7 : 1);
+  const weights = eleven.map((p) => posW[p.position] * roleAttMult(instr[p.id]?.role) * shootMult(instr[p.id]?.shooting) * (1 + mean(p, ["shooting", "off_the_ball"]) / 20));
   const total = weights.reduce((a, b) => a + b, 0);
   let r = Math.random() * total;
   for (let i = 0; i < eleven.length; i++) {
@@ -160,8 +171,11 @@ export function simulateMatch(home: EngineTeam, away: EngineTeam): SimResult {
   const hEleven = startingEleven(home);
   const aEleven = startingEleven(away);
 
-  const hAtt = teamAttack(hEleven), hDef = teamDefense(hEleven), hMid = teamMidfield(hEleven);
-  const aAtt = teamAttack(aEleven), aDef = teamDefense(aEleven), aMid = teamMidfield(aEleven);
+  const hInstr = (home.tactics?.player_instructions ?? {}) as InstrMap;
+  const aInstr = (away.tactics?.player_instructions ?? {}) as InstrMap;
+
+  const hAtt = teamAttack(hEleven, hInstr), hDef = teamDefense(hEleven, hInstr), hMid = teamMidfield(hEleven);
+  const aAtt = teamAttack(aEleven, aInstr), aDef = teamDefense(aEleven, aInstr), aMid = teamMidfield(aEleven);
 
   const hMent = mentalityFactor(home.tactics), aMent = mentalityFactor(away.tactics);
   const hPress = pressingBonus(home.tactics), aPress = pressingBonus(away.tactics);
@@ -184,11 +198,11 @@ export function simulateMatch(home: EngineTeam, away: EngineTeam): SimResult {
 
   const goalEvents: MatchEvent[] = [];
   for (let i = 0; i < homeScore; i++) {
-    const scorer = pickScorer(hEleven);
+    const scorer = pickScorer(hEleven, hInstr);
     goalEvents.push({ minute: uniqueMinute(), type: "goal", team: "home", playerId: scorer.id, playerName: scorer.name, text: `GOL! ${scorer.name} ${home.name} adına fileleri buldu.` });
   }
   for (let i = 0; i < awayScore; i++) {
-    const scorer = pickScorer(aEleven);
+    const scorer = pickScorer(aEleven, aInstr);
     goalEvents.push({ minute: uniqueMinute(), type: "goal", team: "away", playerId: scorer.id, playerName: scorer.name, text: `GOL! ${scorer.name} ${away.name} adına fileleri buldu.` });
   }
 

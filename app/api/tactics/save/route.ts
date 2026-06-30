@@ -27,6 +27,7 @@ export async function POST(req: Request) {
   if (PASS_STYLE.includes(body.pass_style)) update.pass_style = body.pass_style;
   if (body.lineup && typeof body.lineup === "object") update.lineup = body.lineup;
   if (Array.isArray(body.substitutes)) update.substitutes = body.substitutes;
+  if (body.player_instructions && typeof body.player_instructions === "object") update.player_instructions = body.player_instructions;
 
   // team_id unique olduğundan upsert
   const { error } = await svc.from("tactics").upsert(update, { onConflict: "team_id" });

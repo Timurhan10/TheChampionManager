@@ -49,7 +49,17 @@ export interface Tactics {
   pass_style: string;
   lineup: Record<string, string>; // pozisyon slotu -> player_id
   substitutes: string[];
+  player_instructions?: Record<string, PlayerInstruction>; // player_id -> talimatlar
   updated_at: string;
+}
+
+export interface PlayerInstruction {
+  role?: "attacking" | "balanced" | "defensive";
+  pressing?: "low" | "medium" | "high";
+  passing?: "short" | "mixed" | "long";
+  run?: "forward" | "hold" | "wide";
+  risk?: "low" | "medium" | "high";
+  shooting?: "rare" | "normal" | "often";
 }
 
 export interface MatchEvent {
