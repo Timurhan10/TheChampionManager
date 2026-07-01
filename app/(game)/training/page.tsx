@@ -8,7 +8,7 @@ import type { Player } from "@/types/game";
 export const dynamic = "force-dynamic";
 
 export default async function TrainingPage() {
-  const { team } = await getGameContext();
+  const { team, gameUser } = await getGameContext();
   if (!team) redirect("/onboarding");
 
   const svc = createServiceClient();
@@ -31,6 +31,7 @@ export default async function TrainingPage() {
           trainedToday={trainedToday}
           remaining={remaining}
           facilityLevel={(teamRow as any)?.training_facility_level ?? 1}
+          credits={gameUser?.credits ?? 0}
         />
       </div>
     </>

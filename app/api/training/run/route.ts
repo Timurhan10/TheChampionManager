@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { runTraining, TRAINING_TYPES, type TrainingKind } from "@/lib/training";
+import { computeValue } from "@/lib/player-generator";
 import type { Player } from "@/types/game";
 
 const DAILY_LIMIT = 3;
@@ -35,8 +36,12 @@ export async function POST(req: Request) {
   const facility = (team as any).training_facility_level ?? 1;
   const result = runTraining(player as Player, body.kind, facility);
 
-  // Persist: özellik integer artışları + kesirli birikim
-  const patch: Record<string, any> = { training_progress: result.progress, ...result.attrPatch };
+  // Persist: özellik integer artışları + kesirli birikim.
+  // Değer canlanır: güncel attribute'larla piyasa değeri yeniden hesaplanır —
+  // gelişim satış değerine ANINDA yansır (al-geliştir-sat döngüsü).
+  const updatedAttrs = { ...(player as any), ...result.attrPatch };
+  const newValue = computeValue(updatedAttrs, (player as any).position, (player as any).age, (player as any).potential ?? null);
+  const patch: Record<string, any> = { training_progress: result.progress, ...result.attrPatch, value_cr: newValue };
   await svc.from("players").update(patch).eq("id", body.playerId);
   await svc.from("training_sessions").insert({ team_id: team.id, player_id: body.playerId, kind: body.kind });
 
@@ -48,5 +53,7 @@ export async function POST(req: Request) {
     failed: result.failed,
     gains: result.gains,
     remaining: DAILY_LIMIT - (usedToday + 1),
+    valueBefore: (player as any).value_cr ?? 0,
+    valueAfter: newValue,
   });
 }

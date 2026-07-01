@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { computeBuyPrice } from "@/lib/pricing";
 import { notify } from "@/lib/notifications";
 
 // Serbest ajan ise direkt satın alım; başka takıma aitse teklif oluşturur.
@@ -15,7 +16,7 @@ export async function POST(req: Request) {
   const { data: buyer } = await svc.from("teams").select("id").eq("user_id", user.id).maybeSingle();
   if (!buyer) return NextResponse.json({ error: "Takım bulunamadı." }, { status: 400 });
 
-  const { data: player } = await svc.from("players").select("id, team_id, value_cr, asking_price, for_sale, name, is_youth_academy").eq("id", body.playerId).maybeSingle();
+  const { data: player } = await svc.from("players").select("id, team_id, value_cr, asking_price, for_sale, name, is_youth_academy, age, position, potential").eq("id", body.playerId).maybeSingle();
   if (!player) return NextResponse.json({ error: "Oyuncu bulunamadı." }, { status: 404 });
   if (player.team_id === buyer.id) return NextResponse.json({ error: "Bu oyuncu zaten sende." }, { status: 400 });
   // Alt yapı oyuncuları transfer edilemez.
@@ -24,9 +25,9 @@ export async function POST(req: Request) {
   const { data: gameUser } = await svc.from("users").select("credits").eq("id", user.id).single();
   if (!gameUser) return NextResponse.json({ error: "Kullanıcı bulunamadı." }, { status: 400 });
 
-  // Serbest ajan → direkt satın alım
+  // Serbest ajan → direkt satın alım (eski kayıtlarda asking_price yoksa alım formülü)
   if (player.team_id == null) {
-    const price = player.asking_price ?? player.value_cr;
+    const price = player.asking_price ?? computeBuyPrice(player as any);
     if (gameUser.credits < price) return NextResponse.json({ error: "Yetersiz CR." }, { status: 400 });
 
     await svc.from("players").update({ team_id: buyer.id, for_sale: false, asking_price: null }).eq("id", player.id);

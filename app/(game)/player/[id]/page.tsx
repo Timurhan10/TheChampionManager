@@ -6,6 +6,7 @@ import AttributeBar from "@/components/AttributeBar";
 import PlayerActions from "@/components/PlayerActions";
 import BackButton from "@/components/BackButton";
 import { overallRating } from "@/lib/player-generator";
+import { computeBuyPrice } from "@/lib/pricing";
 import {
   CATEGORY_ATTRS,
   CATEGORY_LABELS,
@@ -126,7 +127,7 @@ export default async function PlayerProfilePage({ params }: { params: { id: stri
               playerId={player.id}
               isOwn={isOwn}
               forSale={player.for_sale}
-              askingPrice={player.asking_price}
+              askingPrice={player.team_id == null ? (player.asking_price ?? computeBuyPrice(player)) : player.asking_price}
               valueCr={player.value_cr}
               sellerTeamId={player.team_id}
               isFreeAgent={player.team_id == null}

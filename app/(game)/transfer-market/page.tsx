@@ -7,9 +7,13 @@ import IncomingOffers, { type Offer } from "@/components/IncomingOffers";
 import MarketAutoRefresh from "@/components/MarketAutoRefresh";
 import PlayerCompare, { type ComparePlayer } from "@/components/PlayerCompare";
 import { overallRating } from "@/lib/player-generator";
+import { computeBuyPrice } from "@/lib/pricing";
 import { POSITION_COLORS, ratingColor } from "@/lib/attributes";
 import { formatNumber, teamBadge } from "@/lib/utils";
 import type { Player } from "@/types/game";
+
+// Gösterilen fiyat = tahsil edilen fiyat: asking_price yoksa (eski kayıt) alım formülü.
+const listPrice = (p: Player) => p.asking_price ?? (p.team_id == null ? computeBuyPrice(p) : p.value_cr);
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +47,7 @@ export default async function TransferMarketPage() {
     const scouted = (revealed.get(p.id)?.size ?? 0) > 0;
     return {
       id: p.id, name: p.name, position: p.position, age: p.age,
-      value_cr: p.asking_price ?? p.value_cr,
+      value_cr: listPrice(p),
       overall: scouted ? overallRating(p, p.position) : null,
       potential: null, attrs: null,
     };
@@ -101,7 +105,7 @@ export default async function TransferMarketPage() {
               {listed.map((p) => {
                 const scouted = (revealed.get(p.id)?.size ?? 0) > 0;
                 const free = p.team_id == null;
-                const price = p.asking_price ?? p.value_cr;
+                const price = listPrice(p);
                 const rating = overallRating(p, p.position);
                 return (
                   <div key={p.id} className="grid grid-cols-[1.6fr_48px_1fr_90px_100px_84px] gap-2 px-4 py-2.5 items-center border-b border-border-soft last:border-0 hover:bg-panel-inset/40">

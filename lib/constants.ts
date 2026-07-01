@@ -15,8 +15,17 @@ export const SEASON_CMP = {
   champion: 500,
   second: 250,
   third: 100,
-  promotion: 150,
   unbeaten: 300,
+} as const;
+
+// Sezon sonu CR ödülleri — dereceye göre (koşulsuz 100k enflasyonu kaldırıldı;
+// sıralama ekonomik olarak da önemli).
+export const SEASON_CR = {
+  first: 100000,
+  second: 75000,
+  third: 60000,
+  mid: 40000,
+  bottom: 25000, // son iki sıra
 } as const;
 
 export const STARTING_CREDITS = 100000;
