@@ -104,26 +104,69 @@ export async function runMatch(svc: SupabaseClient, matchId: string): Promise<{ 
   const away = await loadTeam(svc, match.away_team_id);
 
   const result = simulateMatch(home, away);
+  const rec = await recordMatchResult(svc, match, home, away, result);
+  if (rec.error) return { error: rec.error };
+  return { result };
+}
 
-  const { error: updErr } = await svc.from("matches").update({
+// Ortak kayıt kuyruğu: skor+olaylar, reytingler, puan tablosu, ödüller.
+async function recordMatchResult(
+  svc: SupabaseClient,
+  match: { id: string; league_id: string; home_team_id: string; away_team_id: string },
+  home: EngineTeam,
+  away: EngineTeam,
+  result: SimResult,
+): Promise<{ error?: string }> {
+  const { data: upd, error: updErr } = await svc.from("matches").update({
     home_score: result.homeScore,
     away_score: result.awayScore,
     match_events: { events: result.events, stats: result.stats, motm: result.manOfTheMatch, ratings: result.playerRatings },
     status: "finished",
-  }).eq("id", matchId).eq("status", "scheduled"); // çift işlemeyi önle
+  }).eq("id", match.id).eq("status", "scheduled").select("id"); // çift işlemeyi önle
 
   if (updErr) return { error: updErr.message };
+  if (!upd || upd.length === 0) return { error: "Maç zaten işlenmiş." };
 
-  // Oyuncu reytinglerini biriktir (ortalama = rating_sum/matches_played)
   await persistRatings(svc, result.playerRatings);
-
-  // Puan tablosu
   await applyStanding(svc, match.league_id, home.teamId, result.homeScore, result.awayScore);
   await applyStanding(svc, match.league_id, away.teamId, result.awayScore, result.homeScore);
-
-  // CR ödülleri (insan takımlar)
   await rewardTeam(svc, home, result.homeScore, result.awayScore);
   await rewardTeam(svc, away, result.awayScore, result.homeScore);
+  return {};
+}
 
-  return { result };
+// Herhangi bir takımı canlı motor için yükler (lig maçı / lig-takımına-karşı hazırlık).
+export async function loadEngineTeam(svc: SupabaseClient, teamId: string): Promise<EngineTeam> {
+  return loadTeam(svc, teamId);
+}
+
+// İstemcide oynanan canlı lig maçının sonucunu HAFİF doğrulamayla kaydeder.
+// (Hobi oyunu: amaç kaba hile/bozulmayı engellemek; sunucu puan tablosunun tek yazarıdır.)
+export async function completeMatchWithLiveResult(
+  svc: SupabaseClient,
+  matchId: string,
+  result: SimResult,
+): Promise<{ error?: string; skipped?: boolean }> {
+  const { data: match } = await svc
+    .from("matches")
+    .select("id, league_id, home_team_id, away_team_id, status")
+    .eq("id", matchId)
+    .maybeSingle();
+  if (!match) return { error: "Maç bulunamadı." };
+  if (match.status === "finished") return { skipped: true };
+
+  // Temel makullük kontrolleri
+  const goalsH = (result.events ?? []).filter((e) => e.type === "goal" && e.team === "home").length;
+  const goalsA = (result.events ?? []).filter((e) => e.type === "goal" && e.team === "away").length;
+  if (goalsH !== result.homeScore || goalsA !== result.awayScore) return { error: "Sonuç tutarsız (gol/olay uyuşmuyor)." };
+  if (result.homeScore + result.awayScore > 10) return { error: "Sonuç makul değil." };
+  const s = result.stats;
+  if (!s || s.shotsHome > 40 || s.shotsAway > 40 || s.shotsHome < result.homeScore || s.shotsAway < result.awayScore) {
+    return { error: "İstatistikler makul değil." };
+  }
+  if ((result.playerRatings ?? []).length > 44) return { error: "Reyting listesi makul değil." };
+
+  const home = await loadTeam(svc, match.home_team_id);
+  const away = await loadTeam(svc, match.away_team_id);
+  return recordMatchResult(svc, match, home, away, result);
 }

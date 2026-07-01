@@ -13,13 +13,26 @@ export default async function FriendliesPage() {
   if (!team) redirect("/onboarding");
 
   const svc = createServiceClient();
-  const [{ data: history }, { data: players }, { data: tactics }, { data: teamRow }] = await Promise.all([
+  const [{ data: history }, { data: players }, { data: tactics }, { data: teamRow }, { data: myLeagues }] = await Promise.all([
     svc.from("matches").select("id, home_score, away_score, match_events, created_at")
       .eq("home_team_id", team.id).is("league_id", null).order("created_at", { ascending: false }).limit(25),
     svc.from("players").select("*").eq("team_id", team.id),
     svc.from("tactics").select("*").eq("team_id", team.id).maybeSingle(),
     svc.from("teams").select("name, primary_color").eq("id", team.id).maybeSingle(),
+    svc.from("league_teams").select("league_id").eq("team_id", team.id),
   ]);
+
+  // Ligdeki rakip takımlar (hazırlık maçı için)
+  let leagueOpponents: { id: string; name: string }[] = [];
+  const leagueIds = (myLeagues ?? []).map((r: any) => r.league_id);
+  if (leagueIds.length) {
+    const { data: lt } = await svc.from("league_teams").select("team_id").in("league_id", leagueIds).neq("team_id", team.id);
+    const oppIds = Array.from(new Set((lt ?? []).map((r: any) => r.team_id)));
+    if (oppIds.length) {
+      const { data: oppTeams } = await svc.from("teams").select("id, name").in("id", oppIds);
+      leagueOpponents = (oppTeams ?? []) as { id: string; name: string }[];
+    }
+  }
 
   const friendlies = (history ?? []).filter((m: any) => (m.match_events as any)?.friendly);
 
@@ -34,6 +47,7 @@ export default async function FriendliesPage() {
             tactics={(tactics as Tactics) ?? null}
             teamName={teamRow?.name ?? "Takımım"}
             homeColor={hexToNumber(teamRow?.primary_color ?? "#3B82F6")}
+            leagueOpponents={leagueOpponents}
           />
 
           {/* Geçmiş */}

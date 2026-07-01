@@ -1,10 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import LiveMatchEngineCanvas from "./LiveMatchEngineCanvas";
 import { generatePlayer } from "@/lib/player-generator";
+import { computeSquadFit, resolveStyle } from "@/lib/match-engine/fit";
+import { STYLE_PRESETS } from "@/lib/tactic-styles";
 import type { EngineTeam, SimResult } from "@/lib/match-engine/simulator";
 import type { Player, Tactics, Position } from "@/types/game";
+import { cn } from "@/lib/utils";
 
 function matchRatingColor(v: number): string {
   if (v < 5.5) return "#EF4444";
@@ -32,24 +36,64 @@ function buildOpponent(name: string, range: [number, number]): EngineTeam {
 }
 
 export default function FriendlyMatch({
-  canPlay = true, players, tactics, teamName, homeColor,
+  canPlay = true, players, tactics, teamName, homeColor, leagueOpponents = [],
 }: {
   canPlay?: boolean;
   players: Player[];
   tactics: Tactics | null;
   teamName: string;
   homeColor: number;
+  leagueOpponents?: { id: string; name: string }[];
 }) {
+  const router = useRouter();
+  const [tab, setTab] = useState<"ai" | "league">("ai");
   const [difficulty, setDifficulty] = useState("medium");
+  const [leagueOppId, setLeagueOppId] = useState(leagueOpponents[0]?.id ?? "");
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
   const [match, setMatch] = useState<{ home: EngineTeam; away: EngineTeam; seed: string } | null>(null);
   const [result, setResult] = useState<SimResult | null>(null);
 
-  function play() {
+  const myFit = computeSquadFit(players, tactics);
+  const fitColor = myFit.score < 45 ? "#EF4444" : myFit.score < 70 ? "#F59E0B" : "#10B981";
+
+  function playAi() {
     const d = DIFFS.find((x) => x.key === difficulty)!;
     const away = buildOpponent(`${d.label} Rakip`, d.range);
+    start(away);
+  }
+
+  async function playLeague() {
+    if (!leagueOppId) return;
+    setLoading(true); setErr(null);
+    try {
+      const res = await fetch(`/api/friendly/opponent?teamId=${encodeURIComponent(leagueOppId)}`);
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || "Rakip yüklenemedi.");
+      start(d.opponent as EngineTeam);
+    } catch (e: any) { setErr(e.message); } finally { setLoading(false); }
+  }
+
+  function start(away: EngineTeam) {
     const home: EngineTeam = { teamId: "home", name: teamName, isAi: false, players, tactics };
     setResult(null);
-    setMatch({ home, away, seed: `fr-${difficulty}-${Math.floor(Math.random() * 1e9)}` });
+    setMatch({ home, away, seed: `fr-${Math.floor(Math.random() * 1e9)}` });
+  }
+
+  async function onFinish(r: SimResult) {
+    setResult(r);
+    // Geçmişe kaydet (puan/para etkilenmez)
+    try {
+      await fetch("/api/friendly/record", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          opponentName: match?.away.name, homeScore: r.homeScore, awayScore: r.awayScore,
+          stats: r.stats, motm: r.manOfTheMatch,
+          ratings: r.playerRatings.filter((x) => x.team === "home"),
+        }),
+      });
+      router.refresh();
+    } catch { /* kritik değil */ }
   }
 
   if (!canPlay) {
@@ -73,7 +117,7 @@ export default function FriendlyMatch({
         <LiveMatchEngineCanvas
           home={match.home} away={match.away}
           homeColor={homeColor} awayColor={0xef4444}
-          seed={match.seed} onFinish={setResult}
+          seed={match.seed} mySide="home" onFinish={onFinish}
         />
 
         <button onClick={() => { setMatch(null); setResult(null); }}
@@ -105,24 +149,62 @@ export default function FriendlyMatch({
   }
 
   return (
-    <div className="space-y-5 max-w-2xl">
+    <div className="space-y-4 max-w-2xl">
+      <div className="bg-panel border border-border-cm rounded-card px-4 py-2.5 text-sm flex items-center justify-between">
+        <span><span className="text-text-faint">Taktiğin: </span><span className="font-semibold">{STYLE_PRESETS[resolveStyle(tactics)].label}</span></span>
+        <span><span className="text-text-faint">Uyum: </span><span className="font-display font-bold" style={{ color: fitColor }}>{myFit.score}/100</span></span>
+      </div>
+
       <div className="bg-panel border border-border-cm rounded-card p-5">
-        <div className="section-label mb-2">Rakip Zorluğu</div>
-        <div className="flex gap-2 mb-4">
-          {DIFFS.map((d) => (
-            <button key={d.key} onClick={() => setDifficulty(d.key)}
-              className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                difficulty === d.key ? "bg-emerald text-emerald-ink border-emerald" : "border-border-cm text-text-muted hover:border-emerald"
-              }`}>
-              {d.label}
-            </button>
-          ))}
+        {/* Sekmeler */}
+        <div className="flex gap-1 bg-panel-inset rounded-lg p-1 mb-4">
+          <button onClick={() => setTab("ai")}
+            className={cn("flex-1 py-2 rounded text-sm font-semibold", tab === "ai" ? "bg-emerald text-emerald-ink" : "text-text-muted hover:text-text-cm")}>
+            AI Rakip
+          </button>
+          <button onClick={() => setTab("league")}
+            className={cn("flex-1 py-2 rounded text-sm font-semibold", tab === "league" ? "bg-emerald text-emerald-ink" : "text-text-muted hover:text-text-cm")}>
+            Lig Takımı
+          </button>
         </div>
-        <button onClick={play}
-          className="w-full bg-emerald text-emerald-ink font-semibold py-2.5 rounded-lg hover:bg-emerald-bright">
-          Hazırlık Maçı Oyna (Canlı)
-        </button>
-        <p className="text-[11px] text-text-faint text-center mt-2">Gerçek motorla 10 dk canlı maç. Reytingi, parayı veya puanı etkilemez.</p>
+
+        {tab === "ai" ? (
+          <>
+            <div className="section-label mb-2">Rakip Zorluğu</div>
+            <div className="flex gap-2 mb-4">
+              {DIFFS.map((d) => (
+                <button key={d.key} onClick={() => setDifficulty(d.key)}
+                  className={cn("flex-1 py-2 rounded-lg text-sm font-medium border transition-colors",
+                    difficulty === d.key ? "bg-emerald text-emerald-ink border-emerald" : "border-border-cm text-text-muted hover:border-emerald")}>
+                  {d.label}
+                </button>
+              ))}
+            </div>
+            <button onClick={playAi}
+              className="w-full bg-emerald text-emerald-ink font-semibold py-2.5 rounded-lg hover:bg-emerald-bright">
+              Hazırlık Maçı Oyna (Canlı)
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="section-label mb-2">Ligdeki Rakip</div>
+            {leagueOpponents.length === 0 ? (
+              <p className="text-sm text-text-muted mb-3">Bir lige katılınca rakip takımlara karşı hazırlık maçı oynayabilirsin.</p>
+            ) : (
+              <select value={leagueOppId} onChange={(e) => setLeagueOppId(e.target.value)}
+                className="w-full bg-panel-inset border border-border-cm rounded-lg px-3 py-2.5 text-sm outline-none focus:border-emerald mb-3">
+                {leagueOpponents.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            )}
+            <button onClick={playLeague} disabled={loading || !leagueOppId}
+              className="w-full bg-emerald text-emerald-ink font-semibold py-2.5 rounded-lg hover:bg-emerald-bright disabled:opacity-50">
+              {loading ? "Rakip yükleniyor…" : "Lig Rakibine Karşı Oyna (Canlı)"}
+            </button>
+            <p className="text-[11px] text-text-faint text-center mt-2">Seviyeni ölçmek için ligdeki gerçek kadroya karşı oyna.</p>
+          </>
+        )}
+        <p className="text-[11px] text-text-faint text-center mt-2">Hazırlık maçları reytingi, parayı veya puanı etkilemez.</p>
+        {err && <p className="text-xs text-danger text-center mt-2">{err}</p>}
       </div>
     </div>
   );
