@@ -122,6 +122,7 @@ async function recordMatchResult(
     away_score: result.awayScore,
     match_events: { events: result.events, stats: result.stats, motm: result.manOfTheMatch, ratings: result.playerRatings },
     status: "finished",
+    played_at: new Date().toISOString(), // günlük "maç kazan" görevi buna bakar
   }).eq("id", match.id).eq("status", "scheduled").select("id"); // çift işlemeyi önle
 
   if (updErr) return { error: updErr.message };

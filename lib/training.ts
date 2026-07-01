@@ -48,6 +48,26 @@ export const FACILITY_COSTS: Record<number, number> = { 2: 40000, 3: 80000, 4: 1
 export const FACILITY_MAX_LEVEL = 5;
 export const FACILITY_LABELS = ["", "Normal", "İyi", "Çok İyi", "Üst Düzey", "Elit"];
 
+// --- Mentor sistemi ---
+// Tecrübeli oyuncu genç takım arkadaşının gelişimini hızlandırır (pasif bonus:
+// mentorun o gün antrenman yapması gerekmez). Kurallar hem UI hem API'de bu
+// fonksiyonla doğrulanır.
+export const MENTOR_BONUS = 1.25; // mentee antrenman kazancı çarpanı
+export const MENTOR_MAX_MENTEES = 2;
+export const MENTOR_MIN_AGE = 29;
+export const MENTOR_OVERALL_GAP = 2;
+
+export function mentorEligibilityError(
+  mentor: { id: string; age: number; position: string; overall: number },
+  mentee: { id: string; age: number; position: string; overall: number },
+): string | null {
+  if (mentor.id === mentee.id) return "Oyuncu kendine mentor olamaz.";
+  if (mentor.age < MENTOR_MIN_AGE) return `Mentor en az ${MENTOR_MIN_AGE} yaşında olmalı.`;
+  if (mentor.position !== mentee.position) return "Mentor ve oyuncu aynı pozisyonda olmalı.";
+  if (mentor.overall < mentee.overall + MENTOR_OVERALL_GAP) return `Mentorun genel puanı en az +${MENTOR_OVERALL_GAP} yüksek olmalı.`;
+  return null;
+}
+
 export interface TrainingGain { key: AttributeKey; label: string; amount: number; newValue: number; levelUp: boolean; }
 export interface TrainingResult {
   gains: TrainingGain[];
@@ -57,11 +77,13 @@ export interface TrainingResult {
 }
 
 // rng verilmezse Math.random (server route). Saf/test edilebilir.
+// mentorMult: mentee ise MENTOR_BONUS (1.25), yoksa 1.
 export function runTraining(
   player: Player,
   kind: TrainingKind,
   facilityLevel: number,
   rng: () => number = Math.random,
+  mentorMult = 1,
 ): TrainingResult {
   const type = TRAINING_TYPES[kind];
   const progress: Record<string, number> = { ...((player as any).training_progress ?? {}) };
@@ -90,7 +112,7 @@ export function runTraining(
     const sc = strengthCoef(c.v);
     const rand = 0.85 + rng() * 0.3;
     let growth = base * pc * ac * sc * fc * rand * posBonus * (shares[i] / 0.6);
-    growth = clamp(growth, 0.02, 0.7) * failMult;
+    growth = clamp(growth, 0.02, 0.7) * failMult * mentorMult;
 
     const cur = c.v;
     const acc = (progress[c.k] ?? 0) + growth;
