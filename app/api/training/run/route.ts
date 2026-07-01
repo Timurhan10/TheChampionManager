@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { runTraining, TRAINING_TYPES, type TrainingKind } from "@/lib/training";
+import { runTraining, TRAINING_TYPES, MENTOR_BONUS, type TrainingKind } from "@/lib/training";
 import { computeValue } from "@/lib/player-generator";
 import type { Player } from "@/types/game";
 
@@ -34,7 +34,16 @@ export async function POST(req: Request) {
   }
 
   const facility = (team as any).training_facility_level ?? 1;
-  const result = runTraining(player as Player, body.kind, facility);
+
+  // Mentor bonusu: mentee ise ve mentoru hâlâ aynı takımdaysa gelişim ×1.25.
+  let mentorMult = 1;
+  if ((player as any).mentor_id) {
+    const { data: mentor } = await svc.from("players").select("id, team_id").eq("id", (player as any).mentor_id).maybeSingle();
+    if (mentor && (mentor as any).team_id === team.id) mentorMult = MENTOR_BONUS;
+    else await svc.from("players").update({ mentor_id: null }).eq("id", body.playerId); // mentor gitmiş → bağı temizle
+  }
+
+  const result = runTraining(player as Player, body.kind, facility, Math.random, mentorMult);
 
   // Persist: özellik integer artışları + kesirli birikim.
   // Değer canlanır: güncel attribute'larla piyasa değeri yeniden hesaplanır —
@@ -55,5 +64,6 @@ export async function POST(req: Request) {
     remaining: DAILY_LIMIT - (usedToday + 1),
     valueBefore: (player as any).value_cr ?? 0,
     valueAfter: newValue,
+    mentored: mentorMult > 1,
   });
 }

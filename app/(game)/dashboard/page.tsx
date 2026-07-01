@@ -5,6 +5,7 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import PageTopBar from "@/components/PageTopBar";
 import NotificationsPanel, { type NotificationItem } from "@/components/NotificationsPanel";
 import { formatNumber, teamBadge } from "@/lib/utils";
+import { DAILY_TASKS, computeTaskProgress, getClaimedToday } from "@/lib/tasks";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +39,21 @@ export default async function DashboardPage() {
     const { data: opp } = await svc.from("teams").select("name").eq("id", oppId).maybeSingle();
     opponentName = opp?.name ?? "Rakip";
   }
+
+  // Günlük görev özeti (tablo henüz yoksa migration öncesi sessizce gizlenir)
+  let tasksDone = 0, tasksClaimable = 0;
+  let tasksAvailable = true;
+  try {
+    const [progress, claimed] = await Promise.all([
+      computeTaskProgress(svc, team.id),
+      getClaimedToday(svc, team.id),
+    ]);
+    for (const t of DAILY_TASKS) {
+      const done = (progress[t.key] ?? 0) >= t.target;
+      if (done) tasksDone++;
+      if (done && !claimed.has(t.key)) tasksClaimable++;
+    }
+  } catch { tasksAvailable = false; }
 
   return (
     <>
@@ -115,6 +131,23 @@ export default async function DashboardPage() {
             </div>
           </div>
         </div>
+
+        {/* Günlük görevler özeti */}
+        {tasksAvailable && (
+          <Link href="/tasks" className="flex items-center gap-4 bg-panel border border-border-cm rounded-card px-5 py-4 mt-4 hover:border-emerald transition-colors">
+            <span className="w-10 h-10 rounded-lg bg-emerald/10 text-emerald flex items-center justify-center shrink-0">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
+            </span>
+            <div className="flex-1 min-w-0">
+              <div className="font-display font-bold text-sm">Günlük Görevler</div>
+              <div className="text-xs text-text-muted">
+                {tasksDone}/{DAILY_TASKS.length} tamamlandı
+                {tasksClaimable > 0 && <span className="text-emerald font-semibold"> · {tasksClaimable} ödül seni bekliyor!</span>}
+              </div>
+            </div>
+            <span className="text-text-faint text-sm shrink-0">→</span>
+          </Link>
+        )}
 
         {/* Hızlı erişim */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">

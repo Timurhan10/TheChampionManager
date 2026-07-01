@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 const GROUPS: { key: string; label: string; icon: keyof typeof ICONS; items: [string, string][] }[] = [
   { key: "team", label: "Takımım", icon: "team", items: [["/team", "Kadro"], ["/first-eleven", "İlk 11"], ["/tactics", "Taktik"], ["/training", "Antrenman"], ["/youth-academy", "Alt Yapı"]] },
   { key: "transfer", label: "Transfer", icon: "transfer", items: [["/transfer-market", "Transfer Pazarı"], ["/scouting", "Scouting"]] },
-  { key: "club", label: "Kulüp", icon: "league", items: [["/league", "Lig"], ["/friendlies", "Hazırlık Maçları"], ["/cmp-shop", "CMP Mağazası"]] },
+  { key: "club", label: "Kulüp", icon: "league", items: [["/league", "Lig"], ["/friendlies", "Hazırlık Maçları"], ["/tasks", "Görevler"], ["/cmp-shop", "CMP Mağazası"]] },
 ];
 const LS_KEY = "cm-sidebar-groups";
 
