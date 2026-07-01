@@ -113,7 +113,7 @@ export default function MatchCanvas({
       </div>
 
       {/* Phaser canvas */}
-      <div ref={containerRef} className="w-full aspect-[4/3] rounded-card overflow-hidden border border-border-cm bg-bg-base" />
+      <div ref={containerRef} className="w-full aspect-[16/10] rounded-card overflow-hidden border border-border-cm bg-bg-base" />
 
       {/* Kontroller */}
       <div className="flex items-center gap-2 mt-3">

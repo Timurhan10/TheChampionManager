@@ -1,7 +1,8 @@
 // The Champion Manager — Canlı (tick-tabanlı) maç motoru
 // Oyuncu özellikleri + taktik + maç durumundan karar üretir, aksiyonu çözer ve
 // MatchEvent akıtır. Tarayıcıda çalışır; sunucu sonucu doğrular/kaydeder.
-// Koordinat: x,y ∈ [0,1]. Ev sahibi yukarı (y→0) hücum eder, deplasman aşağı (y→1).
+// Koordinat: x,y ∈ [0,1], YATAY saha. x = uzunluk (kaleler x=0 sol / x=1 sağ),
+// y = genişlik. Ev sahibi sağa (x→1) hücum eder, deplasman sola (x→0).
 
 import type { Player, Tactics, MatchEvent } from "@/types/game";
 import type { EngineTeam, SimResult, SimStats, PlayerRating } from "../simulator";
@@ -76,13 +77,13 @@ function passRisk(t: Tactics | null): number {
   return t?.pass_style === "long" ? 1.2 : t?.pass_style === "short" ? 0.85 : 1;
 }
 
-const OPP_GOAL_Y: Record<Side, number> = { home: 0, away: 1 };
+const OPP_GOAL_X: Record<Side, number> = { home: 1, away: 0 };
 
 function buildSide(team: EngineTeam, side: Side): LivePlayer[] {
   const eleven = startingEleven(team);
   const base = basePositions(team.tactics?.formation ?? "4-4-2", side);
   return eleven.map((p, i) => {
-    const b = base[i] ?? { x: 0.5, y: side === "home" ? 0.8 : 0.2 };
+    const b = base[i] ?? { x: side === "home" ? 0.2 : 0.8, y: 0.5 };
     return { id: p.id, name: p.name, position: p.position, side, p, x: b.x, y: b.y, baseX: b.x, baseY: b.y, stamina: 1 };
   });
 }
@@ -181,12 +182,12 @@ export function createLiveEngine(home: EngineTeam, away: EngineTeam, seedStr: st
   // Pas hedefi: ileri + açık bir eş seç
   function choosePassTarget(carrier: LivePlayer): number {
     const arr = sideArr(st.possession);
-    const goalY = OPP_GOAL_Y[st.possession];
+    const goalX = OPP_GOAL_X[st.possession];
     let best = -1, bestScore = -Infinity;
     for (let i = 0; i < arr.length; i++) {
       if (i === st.carrier) continue;
       const tm = arr[i];
-      const forward = (Math.abs(tm.y - goalY) < Math.abs(carrier.y - goalY)) ? 1 : 0; // hedefe daha yakın mı
+      const forward = (Math.abs(tm.x - goalX) < Math.abs(carrier.x - goalX)) ? 1 : 0; // hedefe daha yakın mı
       const opp = nearestOpponent(st.possession, tm.x, tm.y).d; // açıklık
       const d = dist(carrier.x, carrier.y, tm.x, tm.y);
       const score = forward * 1.4 + opp * 2.0 - d * 1.2 + rng() * 0.5;
@@ -196,14 +197,14 @@ export function createLiveEngine(home: EngineTeam, away: EngineTeam, seedStr: st
   }
 
   function decide(carrier: LivePlayer) {
-    const goalY = OPP_GOAL_Y[st.possession];
-    const dGoal = Math.abs(carrier.y - goalY);
+    const goalX = OPP_GOAL_X[st.possession];
+    const dGoal = Math.abs(carrier.x - goalX);
     const pressure = nearestOpponent(st.possession, carrier.x, carrier.y).d; // küçük = baskı
     const t = tactics[st.possession];
 
     // Şut eğilimi (yalnız hücum üçlüsünde anlamlı)
     const shootRange = 0.3;
-    const inRange = dGoal < shootRange && Math.abs(carrier.x - 0.5) < 0.26;
+    const inRange = dGoal < shootRange && Math.abs(carrier.y - 0.5) < 0.26;
     const shootScore = inRange
       ? (A(carrier.p, "shooting") + A(carrier.p, "composure") + A(carrier.p, "technique")) / 3 * mentalityShot(t)
         * (1 - dGoal / shootRange) + rng() * 5
@@ -245,8 +246,8 @@ export function createLiveEngine(home: EngineTeam, away: EngineTeam, seedStr: st
 
   function resolveShot(shooter: LivePlayer) {
     const side = st.possession;
-    const goalY = OPP_GOAL_Y[side];
-    const dGoal = Math.abs(shooter.y - goalY);
+    const goalX = OPP_GOAL_X[side];
+    const dGoal = Math.abs(shooter.x - goalX);
     const pressure = nearestOpponent(side, shooter.x, shooter.y).d;
     const gk = sideArr(side === "home" ? "away" : "home")[0]; // rakip kaleci (index 0)
     if (side === "home") st.stats.shotsHome++; else st.stats.shotsAway++;
@@ -257,7 +258,7 @@ export function createLiveEngine(home: EngineTeam, away: EngineTeam, seedStr: st
       * (1 - dGoal / 0.5) - (pressure < 0.06 ? 3 : 0) + rng() * 4;
 
     // top kaleye doğru uçsun (görsel)
-    setBallFlight(0.5, goalY, "shot", 4);
+    setBallFlight(goalX, 0.5, "shot", 4);
 
     const onTarget = quality > 4 && rng() < clamp(0.32 + (quality - 9) * 0.04, 0.2, 0.62);
     if (!onTarget) {
@@ -286,7 +287,7 @@ export function createLiveEngine(home: EngineTeam, away: EngineTeam, seedStr: st
     for (const s of ["home", "away"] as Side[]) {
       const arr = sideArr(s);
       const attacking = s === st.possession;
-      const goalDir = s === "home" ? -1 : 1; // hücum yönü (ev sahibi yukarı)
+      const goalDir = s === "home" ? 1 : -1; // hücum yönü (ev sahibi sağa, x→1)
       const ownDir = -goalDir;
       const t = tactics[s];
       const mentMult = t?.mentality === "attacking" ? 1.2 : t?.mentality === "defensive" ? 0.7 : 1;
@@ -299,23 +300,23 @@ export function createLiveEngine(home: EngineTeam, away: EngineTeam, seedStr: st
         let tx = pl.baseX, ty = pl.baseY;
         const rf = roleFactor(pl.position);
         if (i === 0) {
-          tx = pl.baseX + (st.ball.x - pl.baseX) * 0.04; // kaleci
+          ty = pl.baseY + (st.ball.y - pl.baseY) * 0.04; // kaleci genişlikte topu izler
         } else if (attacking && i === st.carrier) {
           // top taşıyıcı: rakip kaleye doğru YAVAŞ ilerle, hafif merkeze
-          tx = 0.5 + (pl.x - 0.5) * 0.94;
-          ty = pl.y + goalDir * 0.10;
+          tx = pl.x + goalDir * 0.10;
+          ty = 0.5 + (pl.y - 0.5) * 0.94;
         } else if (attacking) {
           const shift = 0.40 * rf * mentMult;
-          tx = pl.baseX + (0.5 - pl.baseX) * 0.12;
-          ty = pl.baseY + goalDir * shift;
+          tx = pl.baseX + goalDir * shift;
+          ty = pl.baseY + (0.5 - pl.baseY) * 0.12;
         } else if (i === near) {
           tx = st.ball.x; ty = st.ball.y; // baskı
         } else {
           const shift = 0.08 * (1 + rf * 0.3) * pressFactor(t);
-          tx = pl.baseX + (st.ball.x - pl.baseX) * 0.12;
-          ty = pl.baseY + ownDir * shift;
+          tx = pl.baseX + ownDir * shift;
+          ty = pl.baseY + (st.ball.y - pl.baseY) * 0.12;
         }
-        tx = clamp(tx, 0.03, 0.97); ty = clamp(ty, 0.02, 0.98);
+        tx = clamp(tx, 0.02, 0.98); ty = clamp(ty, 0.03, 0.97);
         let spd = 0.02 + A(pl.p, "pace", 10) / 20 * 0.03 * pl.stamina;
         if (attacking && i === st.carrier) spd *= 0.55; // taşıyıcı sürüşü yavaş
         pl.x += clamp(tx - pl.x, -spd, spd);

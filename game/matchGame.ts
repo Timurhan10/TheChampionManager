@@ -1,28 +1,26 @@
-// The Champion Manager — Phaser.js 2D maç sahnesi
+// The Champion Manager — Phaser.js 2D maç sahnesi (YATAY saha)
 // Bu modül YALNIZCA client'ta dinamik import edilmelidir (Phaser window'a bağlıdır).
 //
-// Sahne kendi kendine "canlı" görünür: her karede 22 oyuncu topa göre konumlanır,
-// top bir oyuncudan diğerine paslanır gibi dolaşır (ambient akış). goal() gol anında
-// topu geçici olarak ele alır, sonra ambient akış devam eder.
+// Kaleler solda (x=0) ve sağda (x=W). Ev sahibi SOL yarıda başlar, sağa hücum eder.
+// İki mod: ambient (motorsuz süs akışı — eski replay'ler) ve driven (motor pozisyonları).
 
 import Phaser from "phaser";
 
-const W = 800;
+const W = 960;
 const H = 600;
 
-// 4-3-3 benzeri taban yerleşim (ev sahibi alt yarı, deplasman üst yarı).
-// Ev sahibi yukarı (y azalan) hücum eder; deplasman aşağı (y artan).
+// Yatay taban yerleşim (4-3-3 benzeri): ev sahibi sol yarı, deplasman sağ yarı.
 const HOME_POS: [number, number][] = [
-  [400, 545], // GK
-  [140, 460], [300, 470], [500, 470], [660, 460], // DF
-  [220, 385], [400, 380], [580, 385], // MF
-  [260, 320], [400, 315], [540, 320], // FW
+  [60, 300], // GK
+  [170, 100], [160, 240], [160, 360], [170, 500], // DF
+  [290, 160], [285, 300], [290, 440], // MF
+  [400, 140], [410, 300], [400, 460], // FW
 ];
 const AWAY_POS: [number, number][] = [
-  [400, 55], // GK
-  [140, 140], [300, 130], [500, 130], [660, 140], // DF
-  [220, 215], [400, 220], [580, 215], // MF
-  [260, 280], [400, 285], [540, 280], // FW
+  [900, 300], // GK
+  [790, 500], [800, 360], [800, 240], [790, 100], // DF
+  [670, 440], [675, 300], [670, 160], // MF
+  [560, 460], [550, 300], [560, 140], // FW
 ];
 
 export interface MatchController {
@@ -30,7 +28,7 @@ export interface MatchController {
   setClock: (minute: number, label?: string) => void;
   goal: (team: "home" | "away") => void;
   card: (team: "home" | "away", color: "yellow" | "red") => void;
-  // Motor-güdümlü mod: normalize [0,1] pozisyonlar (ev sahibi altta, y=1 alt)
+  // Motor-güdümlü mod: normalize [0,1] pozisyonlar (x=uzunluk, ev sahibi solda)
   setPositions: (home: { x: number; y: number }[], away: { x: number; y: number }[]) => void;
   setBall: (x: number, y: number) => void;
   trigger: (kind: "goal" | "save" | "shot" | "tackle", team: "home" | "away") => void;
@@ -50,7 +48,7 @@ class MatchScene extends Phaser.Scene {
   possession: "home" | "away" = "home";
   ballTargetX = W / 2;
   ballTargetY = H / 2;
-  ballControlled = false; // gol animasyonu sırasında true
+  ballControlled = false;
   passAccum = 0;
   passInterval = 800;
 
@@ -69,21 +67,24 @@ class MatchScene extends Phaser.Scene {
   }
 
   create() {
-    // Saha
+    // Saha (yatay şeritler dikey bantlar halinde)
     this.add.rectangle(W / 2, H / 2, W, H, 0x0f3d2a);
-    for (let i = 0; i < H; i += 72) {
-      this.add.rectangle(W / 2, i + 36, W, 36, 0x0d3525).setAlpha(i % 144 === 0 ? 0.5 : 0);
+    for (let i = 0; i < W; i += 96) {
+      this.add.rectangle(i + 48, H / 2, 48, H, 0x0d3525).setAlpha(i % 192 === 0 ? 0.5 : 0);
     }
     const line = 0xffffff;
     const g = this.add.graphics({ lineStyle: { width: 2, color: line, alpha: 0.25 } });
     g.strokeRect(20, 20, W - 40, H - 40);
-    g.lineBetween(20, H / 2, W - 20, H / 2);
-    g.strokeCircle(W / 2, H / 2, 60);
-    // Ceza alanları
-    g.strokeRect(W / 2 - 110, 20, 220, 80);
-    g.strokeRect(W / 2 - 110, H - 100, 220, 80);
+    g.lineBetween(W / 2, 20, W / 2, H - 20);        // orta çizgi (dikey)
+    g.strokeCircle(W / 2, H / 2, 62);
+    // Ceza sahaları (sol/sağ)
+    g.strokeRect(20, H / 2 - 115, 105, 230);
+    g.strokeRect(W - 125, H / 2 - 115, 105, 230);
+    // Kale ağızları
+    g.strokeRect(12, H / 2 - 46, 8, 92);
+    g.strokeRect(W - 20, H / 2 - 46, 8, 92);
 
-    // Oyuncular (idle tween yok — hareket update() içinde)
+    // Oyuncular
     HOME_POS.forEach(([x, y]) => {
       const dot = this.add.circle(x, y, 11, this.homeColor).setStrokeStyle(2, 0xffffff, 0.6);
       this.homeDots.push(dot);
@@ -103,26 +104,23 @@ class MatchScene extends Phaser.Scene {
     this.pickBallTarget();
   }
 
-  // Topun yeni hedefini, topu elinde tutan takımın bir oyuncusuna doğru (hücum yönüne nudge'lı) seç.
+  // Ambient: topun yeni hedefi — topu tutan takımın bir oyuncusuna doğru (hücum yönüne nudge'lı).
   pickBallTarget() {
     const dots = this.possession === "home" ? this.homeDots : this.awayDots;
-    // Hücum oyuncularına (dizinin sonu) hafif ağırlık
     const idx = Math.random() < 0.6 ? Phaser.Math.Between(5, dots.length - 1) : Phaser.Math.Between(1, dots.length - 1);
     const p = dots[idx] ?? dots[0];
-    const attackDir = this.possession === "home" ? -1 : 1; // home yukarı
-    this.ballTargetX = Phaser.Math.Clamp(p.x + Phaser.Math.Between(-40, 40), 40, W - 40);
-    this.ballTargetY = Phaser.Math.Clamp(p.y + attackDir * Phaser.Math.Between(0, 70) + Phaser.Math.Between(-30, 30), 55, H - 55);
+    const attackDir = this.possession === "home" ? 1 : -1; // ev sahibi sağa
+    this.ballTargetX = Phaser.Math.Clamp(p.x + attackDir * Phaser.Math.Between(0, 80) + Phaser.Math.Between(-30, 30), 55, W - 55);
+    this.ballTargetY = Phaser.Math.Clamp(p.y + Phaser.Math.Between(-40, 40), 40, H - 40);
   }
 
   update(_time: number, delta: number) {
     if (this.driven) { this.driveUpdate(delta); return; }
     if (!this.ballControlled) {
-      // Topu hedefe doğru yumuşakça taşı
       const kb = Math.min(1, (delta / 1000) * 3.2);
       this.ball.x += (this.ballTargetX - this.ball.x) * kb;
       this.ball.y += (this.ballTargetY - this.ball.y) * kb;
 
-      // Pas zamanlayıcı: yeni hedef + ara sıra top kaybı
       this.passAccum += delta;
       if (this.passAccum >= this.passInterval) {
         this.passAccum = 0;
@@ -132,11 +130,11 @@ class MatchScene extends Phaser.Scene {
       }
     }
 
-    this.moveTeam(this.homeDots, HOME_POS, this.possession === "home", -1, delta);
-    this.moveTeam(this.awayDots, AWAY_POS, this.possession === "away", 1, delta);
+    this.moveTeam(this.homeDots, HOME_POS, this.possession === "home", 1, delta);
+    this.moveTeam(this.awayDots, AWAY_POS, this.possession === "away", -1, delta);
   }
 
-  // Bir takımın oyuncularını taban pozisyon + topa çekim ile hareket ettirir.
+  // Ambient: bir takımın oyuncularını taban pozisyon + topa çekim ile hareket ettirir.
   moveTeam(
     dots: Phaser.GameObjects.Arc[],
     base: [number, number][],
@@ -144,7 +142,6 @@ class MatchScene extends Phaser.Scene {
     attackDir: number,
     delta: number,
   ) {
-    // Topa en yakın oyuncu (kaleci hariç) baskıya gider
     let closest = -1, cd = Infinity;
     for (let i = 1; i < dots.length; i++) {
       const dx = dots[i].x - this.ball.x, dy = dots[i].y - this.ball.y;
@@ -156,16 +153,15 @@ class MatchScene extends Phaser.Scene {
       const [bx, by] = base[i];
       let tx = bx, ty = by;
       if (i === 0) {
-        // Kaleci: kendi kalesinde kalır, top x'ine hafif kayar
-        tx = bx + (this.ball.x - bx) * 0.05;
+        ty = by + (this.ball.y - by) * 0.05; // kaleci genişlikte kayar
       } else {
         const pull = i === closest ? 0.62 : 0.15;
         tx = bx + (this.ball.x - bx) * pull;
         ty = by + (this.ball.y - by) * pull;
-        if (attacking) ty += attackDir * 16; // hücumda hattı ileri taşı
+        if (attacking) tx += attackDir * 20; // hücumda hattı ileri taşı
       }
-      tx = Phaser.Math.Clamp(tx, 28, W - 28);
-      ty = Phaser.Math.Clamp(ty, 30, H - 30);
+      tx = Phaser.Math.Clamp(tx, 30, W - 30);
+      ty = Phaser.Math.Clamp(ty, 28, H - 28);
       dots[i].x += (tx - dots[i].x) * k;
       dots[i].y += (ty - dots[i].y) * k;
     }
@@ -180,23 +176,14 @@ class MatchScene extends Phaser.Scene {
   }
 
   goal(team: "home" | "away") {
-    // Top hızla rakip kaleye + flash; ambient akışı geçici durdur
+    // Ambient gol: top hızla rakip kaleye + flash. (Driven modda trigger('goal') kullanılır.)
     this.ballControlled = true;
-    const targetY = team === "home" ? 40 : H - 40;
+    const targetX = team === "home" ? W - 36 : 36;
     this.tweens.killTweensOf(this.ball);
     this.tweens.add({
-      targets: this.ball, x: W / 2, y: targetY, duration: 350, ease: "Cubic.easeIn",
+      targets: this.ball, x: targetX, y: H / 2, duration: 350, ease: "Cubic.easeIn",
       onComplete: () => {
-        const flash = this.add.rectangle(W / 2, H / 2, W, H, 0xffffff).setAlpha(0.6);
-        this.tweens.add({ targets: flash, alpha: 0, duration: 500, onComplete: () => flash.destroy() });
-        // Konfeti
-        for (let i = 0; i < 24; i++) {
-          const c = this.add.circle(W / 2, targetY, 4, Phaser.Display.Color.RandomRGB().color);
-          this.tweens.add({
-            targets: c, x: W / 2 + Phaser.Math.Between(-200, 200), y: targetY + Phaser.Math.Between(-120, 120),
-            alpha: 0, duration: 900, onComplete: () => c.destroy(),
-          });
-        }
+        this.celebrate(team);
         this.time.delayedCall(700, () => {
           this.ball.setPosition(W / 2, H / 2);
           this.ballTargetX = W / 2; this.ballTargetY = H / 2;
@@ -208,8 +195,8 @@ class MatchScene extends Phaser.Scene {
   }
 
   card(team: "home" | "away", color: "yellow" | "red") {
-    const y = team === "home" ? H - 120 : 120;
-    const rect = this.add.rectangle(W / 2, y, 16, 22, color === "yellow" ? 0xf59e0b : 0xef4444).setStrokeStyle(1, 0xffffff);
+    const x = team === "home" ? W * 0.3 : W * 0.7;
+    const rect = this.add.rectangle(x, H / 2, 16, 22, color === "yellow" ? 0xf59e0b : 0xef4444).setStrokeStyle(1, 0xffffff);
     rect.setScale(0);
     this.tweens.add({ targets: rect, scale: 1.4, duration: 250, yoyo: true, hold: 600, onComplete: () => rect.destroy() });
   }
@@ -229,12 +216,14 @@ class MatchScene extends Phaser.Scene {
   driveUpdate(delta: number) {
     const kp = Math.min(1, (delta / 1000) * 9);
     for (let i = 0; i < this.homeDots.length; i++) {
-      const t = this.homeTarget[i]; if (!t) continue;
+      const t = this.homeTarget[i]; if (!t) { this.homeDots[i].setVisible(false); continue; }
+      this.homeDots[i].setVisible(true);
       this.homeDots[i].x += (t[0] - this.homeDots[i].x) * kp;
       this.homeDots[i].y += (t[1] - this.homeDots[i].y) * kp;
     }
     for (let i = 0; i < this.awayDots.length; i++) {
-      const t = this.awayTarget[i]; if (!t) continue;
+      const t = this.awayTarget[i]; if (!t) { this.awayDots[i].setVisible(false); continue; }
+      this.awayDots[i].setVisible(true);
       this.awayDots[i].x += (t[0] - this.awayDots[i].x) * kp;
       this.awayDots[i].y += (t[1] - this.awayDots[i].y) * kp;
     }
@@ -246,8 +235,9 @@ class MatchScene extends Phaser.Scene {
   trigger(kind: "goal" | "save" | "shot" | "tackle", team: "home" | "away") {
     if (kind === "goal") { this.celebrate(team); return; }
     if (kind === "save") {
-      const y = team === "home" ? H - 44 : 44;
-      const f = this.add.circle(W / 2, y, 30, 0x38bdf8).setAlpha(0.5);
+      // Kurtaran takımın kalesi: ev sahibi solda korur
+      const x = team === "home" ? 44 : W - 44;
+      const f = this.add.circle(x, H / 2, 30, 0x38bdf8).setAlpha(0.5);
       this.tweens.add({ targets: f, alpha: 0, scale: 1.6, duration: 400, onComplete: () => f.destroy() });
     } else if (kind === "tackle") {
       const f = this.add.circle(this.ball.x, this.ball.y, 12, 0xf59e0b).setAlpha(0.6);
@@ -256,12 +246,12 @@ class MatchScene extends Phaser.Scene {
   }
 
   celebrate(team: "home" | "away") {
-    const targetY = team === "home" ? 40 : H - 40;
+    const targetX = team === "home" ? W - 40 : 40;
     const flash = this.add.rectangle(W / 2, H / 2, W, H, 0xffffff).setAlpha(0.55);
     this.tweens.add({ targets: flash, alpha: 0, duration: 500, onComplete: () => flash.destroy() });
     for (let i = 0; i < 24; i++) {
-      const c = this.add.circle(W / 2, targetY, 4, Phaser.Display.Color.RandomRGB().color);
-      this.tweens.add({ targets: c, x: W / 2 + Phaser.Math.Between(-200, 200), y: targetY + Phaser.Math.Between(-120, 120), alpha: 0, duration: 900, onComplete: () => c.destroy() });
+      const c = this.add.circle(targetX, H / 2, 4, Phaser.Display.Color.RandomRGB().color);
+      this.tweens.add({ targets: c, x: targetX + Phaser.Math.Between(-120, 120), y: H / 2 + Phaser.Math.Between(-200, 200), alpha: 0, duration: 900, onComplete: () => c.destroy() });
     }
   }
 }

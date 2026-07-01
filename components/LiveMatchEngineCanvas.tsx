@@ -3,26 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import type { MatchController } from "@/game/matchGame";
 import type { EngineTeam, SimResult } from "@/lib/match-engine/simulator";
-import { createLiveEngine, TICKS_PER_HALF, TOTAL_TICKS, type LiveEngine } from "@/lib/match-engine/live/engine";
+import { createLiveEngine, TICKS_PER_HALF, TOTAL_TICKS, type LiveEngine, type Side } from "@/lib/match-engine/live/engine";
+import MatchTicker from "./MatchTicker";
 import type { MatchEvent } from "@/types/game";
 import { cn } from "@/lib/utils";
-
-const TAG: Record<string, { label: string; color: string }> = {
-  goal: { label: "GOL", color: "#10B981" },
-  shot: { label: "ŞUT", color: "#38BDF8" },
-  save: { label: "KURT", color: "#A78BFA" },
-  miss: { label: "AUT", color: "#94A3B8" },
-  tackle: { label: "MÜD", color: "#F59E0B" },
-  yellow: { label: "SK", color: "#F59E0B" },
-  red: { label: "KRT", color: "#EF4444" },
-  sub: { label: "DEĞ", color: "#3B82F6" },
-};
 
 const TICK_MS = 100; // 6000 tick × 100ms = 10 dk (5+5)
 type Phase = "idle" | "first" | "halftime" | "second" | "done";
 
 export default function LiveMatchEngineCanvas({
-  home, away, homeColor, awayColor, seed, onFinish,
+  home, away, homeColor, awayColor, seed, onFinish, mySide = "home",
 }: {
   home: EngineTeam;
   away: EngineTeam;
@@ -30,6 +20,7 @@ export default function LiveMatchEngineCanvas({
   awayColor: number;
   seed: string;
   onFinish?: (r: SimResult) => void;
+  mySide?: Side; // değişiklik panelinin kontrol ettiği taraf (lig maçında deplasman olabilir)
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const controllerRef = useRef<MatchController | null>(null);
@@ -42,7 +33,7 @@ export default function LiveMatchEngineCanvas({
   const [minute, setMinute] = useState(0);
   const [hs, setHs] = useState(0);
   const [as, setAs] = useState(0);
-  const [feed, setFeed] = useState<MatchEvent[]>([]);
+  const [feed, setFeed] = useState<MatchEvent[]>([]); // kronolojik (ticker için)
   const [speed, setSpeed] = useState(1);
   const speedRef = useRef(1);
   const [subOut, setSubOut] = useState<string | null>(null);
@@ -69,17 +60,16 @@ export default function LiveMatchEngineCanvas({
   function drainEvents() {
     const eng = engineRef.current!; const ctrl = controllerRef.current;
     const evs = eng.getState().events;
+    const fresh: MatchEvent[] = [];
     while (evIdxRef.current < evs.length) {
       const ev = evs[evIdxRef.current++];
       if (ev.type === "goal") { ctrl?.trigger("goal", ev.team); }
       else if (ev.type === "save") { ctrl?.trigger("save", ev.team); }
       else if (ev.type === "tackle") { ctrl?.trigger("tackle", ev.team); }
-      else if (ev.type === "shot") { ctrl?.trigger("shot", ev.team); }
-      // önemli olaylar akışa (pas/çok küçükler hariç)
-      if (ev.type === "goal" || ev.type === "save" || ev.type === "shot" || ev.type === "tackle" || ev.type === "miss" || ev.type === "yellow" || ev.type === "red") {
-        setFeed((prev) => [ev, ...prev].slice(0, 40));
-      }
+      else if (ev.type === "yellow" || ev.type === "red") { ctrl?.card(ev.team, ev.type); }
+      fresh.push(ev);
     }
+    if (fresh.length) setFeed((prev) => [...prev, ...fresh]);
   }
 
   // Tick döngüsü
@@ -115,17 +105,18 @@ export default function LiveMatchEngineCanvas({
 
   function doSub(inId: string) {
     const eng = engineRef.current; if (!eng || !subOut) return;
-    const res = eng.substitute("home", subOut, inId);
+    const res = eng.substitute(mySide, subOut, inId);
     if (res.ok) { setSubOut(null); setSubVer((v) => v + 1); setSubMsg(null); }
     else setSubMsg(res.reason ?? "Değişiklik yapılamadı.");
   }
 
   const dmLabel = phase === "done" ? "MAÇ SONU" : phase === "halftime" ? "DEVRE ARASI" : minute < 45 ? "İLK YARI" : "İKİNCİ YARI";
   const eng0 = engineRef.current;
-  const onPitch = eng0 ? eng0.getState().home : [];
+  const myTeam = mySide === "home" ? home : away;
+  const onPitch = eng0 ? eng0.getState()[mySide] : [];
   const onIds = new Set(onPitch.map((p) => p.id));
-  const bench = home.players.filter((p) => !onIds.has(p.id));
-  const subsLeft = 3 - (eng0?.subsUsed("home") ?? 0);
+  const bench = myTeam.players.filter((p) => !onIds.has(p.id));
+  const subsLeft = 3 - (eng0?.subsUsed(mySide) ?? 0);
   const canSub = phase !== "idle" && phase !== "done" && subsLeft > 0;
 
   return (
@@ -139,7 +130,10 @@ export default function LiveMatchEngineCanvas({
         </span>
       </div>
 
-      <div ref={containerRef} className="w-full aspect-[4/3] rounded-card overflow-hidden border border-border-cm bg-bg-base" />
+      <div ref={containerRef} className="w-full aspect-[16/10] rounded-card overflow-hidden border border-border-cm bg-bg-base" />
+
+      {/* Haber bandı — canvas'ın hemen altında */}
+      <MatchTicker events={feed} />
 
       <div className="flex items-center gap-2 mt-3 min-h-[40px]">
         {phase === "idle" && (
@@ -205,24 +199,6 @@ export default function LiveMatchEngineCanvas({
           <div className="text-text-muted text-sm">{phase === "idle" ? "Maç başlayınca değişiklik yapabilirsin." : subsLeft <= 0 ? "Değişiklik hakkın bitti (3/3)." : "Maç bitti."}</div>
         )}
         {subMsg && <p className="text-xs text-danger mt-1">{subMsg}</p>}
-      </div>
-
-      <div className="mt-4">
-        <div className="section-label mb-2">Canlı Anlatım</div>
-        <div className="bg-panel border border-border-cm rounded-card divide-y divide-border-soft max-h-[240px] overflow-y-auto">
-          {feed.length === 0 && <div className="px-4 py-6 text-center text-text-muted text-sm">Maçı başlat — olaylar burada akacak.</div>}
-          {feed.map((e, i) => {
-            const tag = TAG[e.type] ?? { label: "OLAY", color: "#94A3B8" };
-            const big = (e.importance ?? 0) >= 2;
-            return (
-              <div key={i} className={cn("flex items-center gap-3 px-4 py-2.5", big && "bg-emerald/5")}>
-                <span className="font-display font-bold text-sm w-8 text-text-2">{e.minute}'</span>
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: `${tag.color}22`, color: tag.color }}>{tag.label}</span>
-                <span className={cn("text-sm", big && "font-semibold")}>{e.text}</span>
-              </div>
-            );
-          })}
-        </div>
       </div>
     </div>
   );
