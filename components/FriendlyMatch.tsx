@@ -1,56 +1,105 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import LiveMatchCanvas from "./LiveMatchCanvas";
-import type { MatchEvent } from "@/types/game";
+import LiveMatchEngineCanvas from "./LiveMatchEngineCanvas";
+import { generatePlayer } from "@/lib/player-generator";
+import type { EngineTeam, SimResult } from "@/lib/match-engine/simulator";
+import type { Player, Tactics, Position } from "@/types/game";
 
-// Maç reytingi (0-10) renk eşiği
 function matchRatingColor(v: number): string {
   if (v < 5.5) return "#EF4444";
   if (v < 7) return "#F59E0B";
   return "#10B981";
 }
 
-interface FriendlyResult {
-  home: { name: string; score: number };
-  away: { name: string; score: number };
-  motm: { playerId: string; name: string; team: "home" | "away" } | null;
-  ratings: { playerId: string; name: string; rating: number }[];
-  events: MatchEvent[];
-}
-
 const DIFFS = [
-  { key: "easy", label: "Kolay" },
-  { key: "medium", label: "Orta" },
-  { key: "hard", label: "Zor" },
+  { key: "easy", label: "Kolay", range: [7, 11] as [number, number] },
+  { key: "medium", label: "Orta", range: [9, 13] as [number, number] },
+  { key: "hard", label: "Zor", range: [12, 16] as [number, number] },
 ];
 
-export default function FriendlyMatch({ canPlay = true }: { canPlay?: boolean }) {
-  const router = useRouter();
-  const [difficulty, setDifficulty] = useState("medium");
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const [result, setResult] = useState<FriendlyResult | null>(null);
+function buildOpponent(name: string, range: [number, number]): EngineTeam {
+  const plan: Position[] = ["GK", "DF", "DF", "DF", "DF", "MF", "MF", "MF", "FW", "FW", "FW", "DF", "MF", "FW"];
+  const players: Player[] = plan.map((position, i) => {
+    const g = generatePlayer({ position, attrMin: range[0], attrMax: range[1] });
+    return {
+      id: `opp-${i}`, team_id: "opp", name: `Rakip ${i + 1}`, age: g.age, position,
+      is_youth_academy: false, potential: g.potential, value_cr: g.value_cr,
+      for_sale: false, asking_price: null, created_at: "", ...g.attributes,
+    } as unknown as Player;
+  });
+  return { teamId: "opp", name, isAi: true, players, tactics: null };
+}
 
-  async function play() {
-    setLoading(true); setErr(null);
-    try {
-      const res = await fetch("/api/friendly/play", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ difficulty }),
-      });
-      const d = await res.json();
-      if (!res.ok) throw new Error(d.error || "Maç oynanamadı.");
-      setResult(d);
-      router.refresh(); // geçmiş listesini güncelle
-    } catch (e: any) { setErr(e.message); } finally { setLoading(false); }
+export default function FriendlyMatch({
+  canPlay = true, players, tactics, teamName, homeColor,
+}: {
+  canPlay?: boolean;
+  players: Player[];
+  tactics: Tactics | null;
+  teamName: string;
+  homeColor: number;
+}) {
+  const [difficulty, setDifficulty] = useState("medium");
+  const [match, setMatch] = useState<{ home: EngineTeam; away: EngineTeam; seed: string } | null>(null);
+  const [result, setResult] = useState<SimResult | null>(null);
+
+  function play() {
+    const d = DIFFS.find((x) => x.key === difficulty)!;
+    const away = buildOpponent(`${d.label} Rakip`, d.range);
+    const home: EngineTeam = { teamId: "home", name: teamName, isAi: false, players, tactics };
+    setResult(null);
+    setMatch({ home, away, seed: `fr-${difficulty}-${Math.floor(Math.random() * 1e9)}` });
   }
 
   if (!canPlay) {
     return (
       <div className="bg-panel border border-border-cm rounded-card p-6 text-center">
-        <p className="text-sm text-text-muted">Hazırlık maçları şu an kullanılamıyor.</p>
+        <p className="text-sm text-text-muted">Hazırlık maçı için en az 11 oyuncun olmalı.</p>
+      </div>
+    );
+  }
+
+  if (match) {
+    const homeRatings = (result?.playerRatings ?? []).filter((r) => r.team === "home");
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
+          <div className="text-right font-display font-bold text-lg truncate">{match.home.name}</div>
+          <div className="text-xs text-text-faint">vs</div>
+          <div className="text-left font-display font-bold text-lg text-text-muted truncate">{match.away.name}</div>
+        </div>
+
+        <LiveMatchEngineCanvas
+          home={match.home} away={match.away}
+          homeColor={homeColor} awayColor={0xef4444}
+          seed={match.seed} onFinish={setResult}
+        />
+
+        <button onClick={() => { setMatch(null); setResult(null); }}
+          className="w-full border border-border-cm py-2.5 rounded-lg text-sm hover:bg-panel-inset">
+          Yeni Hazırlık Maçı
+        </button>
+
+        {result && result.manOfTheMatch && (
+          <div className="bg-panel border border-border-cm rounded-card px-6 py-2.5 text-center text-xs">
+            <span className="text-text-faint">Maçın Adamı: </span>
+            <span className="font-semibold text-amber">{result.manOfTheMatch.name}</span>
+          </div>
+        )}
+        {result && (
+          <div className="bg-panel border border-border-cm rounded-card p-4">
+            <div className="section-label mb-2">Oyuncu Reytingleri (kendi takımın)</div>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+              {homeRatings.map((r) => (
+                <div key={r.playerId} className="flex items-center justify-between text-sm py-0.5">
+                  <span className="truncate text-text-2">{r.name}</span>
+                  <span className="font-display font-bold tabular-nums ml-2" style={{ color: matchRatingColor(r.rating) }}>{r.rating.toFixed(1)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -69,48 +118,12 @@ export default function FriendlyMatch({ canPlay = true }: { canPlay?: boolean })
             </button>
           ))}
         </div>
-        <button onClick={play} disabled={loading}
-          className="w-full bg-emerald text-emerald-ink font-semibold py-2.5 rounded-lg hover:bg-emerald-bright disabled:opacity-50">
-          {loading ? "Maç oynanıyor…" : "Hazırlık Maçı Oyna"}
+        <button onClick={play}
+          className="w-full bg-emerald text-emerald-ink font-semibold py-2.5 rounded-lg hover:bg-emerald-bright">
+          Hazırlık Maçı Oyna (Canlı)
         </button>
-        <p className="text-[11px] text-text-faint text-center mt-2">Hazırlık maçları reytingleri, parayı veya puan tablosunu etkilemez.</p>
-        {err && <p className="text-xs text-danger text-center mt-2">{err}</p>}
+        <p className="text-[11px] text-text-faint text-center mt-2">Gerçek motorla 10 dk canlı maç. Reytingi, parayı veya puanı etkilemez.</p>
       </div>
-
-      {result && (
-        <div className="space-y-4">
-          {/* Takım başlığı */}
-          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
-            <div className="text-right font-display font-bold text-lg truncate">{result.home.name}</div>
-            <div className="text-xs text-text-faint">vs</div>
-            <div className="text-left font-display font-bold text-lg text-text-muted truncate">{result.away.name}</div>
-          </div>
-
-          {/* Canlı animasyonlu maç (10 dk = 5+5) */}
-          <LiveMatchCanvas events={result.events} homeColor={0x3b82f6} awayColor={0xef4444} />
-
-          {result.motm && (
-            <div className="bg-panel border border-border-cm rounded-card px-6 py-2.5 text-center text-xs">
-              <span className="text-text-faint">Maçın Adamı: </span>
-              <span className="font-semibold text-amber">{result.motm.name}</span>
-            </div>
-          )}
-
-          <div className="bg-panel border border-border-cm rounded-card p-4">
-            <div className="section-label mb-2">Oyuncu Reytingleri (kendi takımın)</div>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-1">
-              {result.ratings.map((r) => (
-                <div key={r.playerId} className="flex items-center justify-between text-sm py-0.5">
-                  <span className="truncate text-text-2">{r.name}</span>
-                  <span className="font-display font-bold tabular-nums ml-2" style={{ color: matchRatingColor(r.rating) }}>
-                    {r.rating.toFixed(1)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
