@@ -8,6 +8,8 @@ import { POSITION_COLORS } from "@/lib/attributes";
 import { formatNumber } from "@/lib/utils";
 import type { Player } from "@/types/game";
 
+export const dynamic = "force-dynamic";
+
 export default async function YouthAcademyPage() {
   const { team } = await getGameContext();
   if (!team) redirect("/onboarding");
@@ -38,7 +40,7 @@ export default async function YouthAcademyPage() {
           <AcademyToggle active={active} />
         </div>
 
-        <div className="grid grid-cols-[1fr_340px] gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5">
           {/* Sol: bilgi + üretim */}
           <div className="space-y-5">
             <div className="bg-panel border border-border-cm rounded-card p-5">
@@ -50,7 +52,7 @@ export default async function YouthAcademyPage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <Stat label="Mevcut Genç" value={`${youth.length}`} />
               <Stat label="Bu Sezon Beklenen" value="1-3" />
               <Stat label="Durum" value={active ? "Aktif" : "Pasif"} />

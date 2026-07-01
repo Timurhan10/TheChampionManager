@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { formatCR } from "@/lib/utils";
 
 export default function PlayerActions({
   playerId, isOwn, forSale, askingPrice, valueCr, isFreeAgent, isYouth = false,
@@ -46,7 +47,7 @@ export default function PlayerActions({
       <div className="space-y-2">
         {forSale ? (
           <>
-            <div className="text-xs text-amber text-center">Satışta · {askingPrice?.toLocaleString("tr-TR")} CR</div>
+            <div className="text-xs text-amber text-center">Satışta · {formatCR(askingPrice ?? 0)}</div>
             <button onClick={async () => { if (await call("unlist", "/api/players/list-for-sale", { playerId, forSale: false })) setMsg({ text: "Satıştan kaldırıldı.", ok: true }); }}
               disabled={loading === "unlist"}
               className="w-full border border-danger text-danger font-semibold py-2.5 rounded-lg hover:bg-danger/10 text-sm disabled:opacity-50">
@@ -56,7 +57,7 @@ export default function PlayerActions({
         ) : (
           <>
             <p className="text-[11px] text-text-faint text-center">Fiyat performansa göre sistemce belirlenir. Para anında kasana eklenir.</p>
-            <button onClick={async () => { const d = await call("list", "/api/players/list-for-sale", { playerId, forSale: true }); if (d) setMsg({ text: `Satıldı · +${(d.price ?? 0).toLocaleString("tr-TR")} CR kasana eklendi`, ok: true }); }}
+            <button onClick={async () => { const d = await call("list", "/api/players/list-for-sale", { playerId, forSale: true }); if (d) setMsg({ text: `Satıldı · +${formatCR(d.price ?? 0)} kasana eklendi`, ok: true }); }}
               disabled={loading === "list"}
               className="w-full bg-emerald text-emerald-ink font-semibold py-2.5 rounded-lg hover:bg-emerald-bright text-sm disabled:opacity-50">
               Oyuncuyu Sat (Anında)
@@ -74,7 +75,7 @@ export default function PlayerActions({
         <button onClick={async () => { if (await call("buy", "/api/transfers/offer", { playerId })) setMsg({ text: "Oyuncu alındı!", ok: true }); }}
           disabled={loading === "buy"}
           className="w-full bg-emerald text-emerald-ink font-semibold py-2.5 rounded-lg hover:bg-emerald-bright text-sm disabled:opacity-50">
-          Satın Al ({(askingPrice ?? valueCr).toLocaleString("tr-TR")} CR)
+          Satın Al ({formatCR(askingPrice ?? valueCr)})
         </button>
       ) : (
         <>

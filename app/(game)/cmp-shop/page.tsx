@@ -5,6 +5,8 @@ import PageTopBar from "@/components/PageTopBar";
 import CmpShopClient, { type ShopItem } from "@/components/CmpShopClient";
 import { formatNumber } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+
 export default async function CmpShopPage() {
   const { gameUser, team } = await getGameContext();
   if (!team) redirect("/onboarding");

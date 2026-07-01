@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import PlayMatchButton from "./PlayMatchButton";
 
 function diff(target: number) {
   const ms = Math.max(0, target - Date.now());
@@ -13,7 +12,7 @@ function diff(target: number) {
   return { d, h, m, s, done: ms === 0 };
 }
 
-export default function PreMatch({ scheduledAt, homeName, awayName, matchId, canPlay = false }: { scheduledAt: string; homeName: string; awayName: string; matchId?: string; canPlay?: boolean }) {
+export default function PreMatch({ scheduledAt, homeName, awayName }: { scheduledAt: string; homeName: string; awayName: string; matchId?: string; canPlay?: boolean }) {
   const target = new Date(scheduledAt).getTime();
   const [t, setT] = useState(() => diff(target));
 
@@ -38,13 +37,6 @@ export default function PreMatch({ scheduledAt, homeName, awayName, matchId, can
               <div className="text-[10px] text-text-faint tracking-wide mt-1">{label}</div>
             </div>
           ))}
-        </div>
-      )}
-
-      {canPlay && matchId && (
-        <div className="mb-5">
-          <PlayMatchButton matchId={matchId} />
-          <p className="text-text-faint text-xs mt-2">Zamanı beklemeden maçı şimdi oynayıp izleyebilirsin.</p>
         </div>
       )}
 
