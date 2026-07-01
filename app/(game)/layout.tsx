@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import Sidebar from "@/components/Sidebar";
+import SidebarShell from "@/components/SidebarShell";
 import { getGameContext } from "@/lib/data";
 import { teamBadge } from "@/lib/utils";
 import GameContextProvider from "@/components/GameContextProvider";
@@ -21,12 +21,9 @@ export default async function GameLayout({
       teamBadge={team ? teamBadge(team.name) : "CM"}
       username={gameUser?.username ?? "Menajer"}
     >
-      <div className="flex h-screen overflow-hidden">
-        <Sidebar teamName={team?.name} username={gameUser?.username} isAdmin={(gameUser as any)?.is_admin === true} />
-        <div className="flex-1 flex flex-col overflow-hidden bg-bg-deep">
-          {children}
-        </div>
-      </div>
+      <SidebarShell teamName={team?.name} username={gameUser?.username} isAdmin={(gameUser as any)?.is_admin === true}>
+        {children}
+      </SidebarShell>
     </GameContextProvider>
   );
 }
