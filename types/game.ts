@@ -75,11 +75,16 @@ export interface PlayerInstruction {
   shooting?: "rare" | "normal" | "often";
 }
 
+export type MatchEventType =
+  | "goal" | "yellow" | "red" | "sub" | "half_time" | "full_time" | "chance"
+  | "shot" | "save" | "miss" | "tackle" | "counter" | "kickoff" | "corner" | "foul";
+
 export interface MatchEvent {
   minute: number;
-  type: "goal" | "yellow" | "red" | "sub" | "half_time" | "full_time" | "chance";
+  type: MatchEventType;
   team: "home" | "away";
   playerId?: string;
   playerName?: string;
   text: string;
+  importance?: number; // 0-3, anlatım/vurgu için
 }

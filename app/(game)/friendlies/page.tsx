@@ -3,20 +3,23 @@ import { getGameContext } from "@/lib/data";
 import { createServiceClient } from "@/lib/supabase/server";
 import PageTopBar from "@/components/PageTopBar";
 import FriendlyMatch from "@/components/FriendlyMatch";
+import { hexToNumber } from "@/lib/utils";
+import type { Player, Tactics } from "@/types/game";
+
+export const dynamic = "force-dynamic";
 
 export default async function FriendliesPage() {
   const { team } = await getGameContext();
   if (!team) redirect("/onboarding");
 
   const svc = createServiceClient();
-  // Geçmiş hazırlık maçları (league_id NULL)
-  const { data: history } = await svc
-    .from("matches")
-    .select("id, home_score, away_score, match_events, created_at")
-    .eq("home_team_id", team.id)
-    .is("league_id", null)
-    .order("created_at", { ascending: false })
-    .limit(25);
+  const [{ data: history }, { data: players }, { data: tactics }, { data: teamRow }] = await Promise.all([
+    svc.from("matches").select("id, home_score, away_score, match_events, created_at")
+      .eq("home_team_id", team.id).is("league_id", null).order("created_at", { ascending: false }).limit(25),
+    svc.from("players").select("*").eq("team_id", team.id),
+    svc.from("tactics").select("*").eq("team_id", team.id).maybeSingle(),
+    svc.from("teams").select("name, primary_color").eq("id", team.id).maybeSingle(),
+  ]);
 
   const friendlies = (history ?? []).filter((m: any) => (m.match_events as any)?.friendly);
 
@@ -25,7 +28,13 @@ export default async function FriendliesPage() {
       <PageTopBar title="Hazırlık Maçları" subtitle="İstediğin zaman AI'ya karşı maç oyna — sonuçlar reytingi, parayı veya puanı etkilemez" />
       <div className="flex-1 overflow-y-auto p-[22px]">
         <div className="grid grid-cols-[1fr_340px] gap-5 max-w-5xl">
-          <FriendlyMatch canPlay={true} />
+          <FriendlyMatch
+            canPlay={(players ?? []).length >= 11}
+            players={(players ?? []) as Player[]}
+            tactics={(tactics as Tactics) ?? null}
+            teamName={teamRow?.name ?? "Takımım"}
+            homeColor={hexToNumber(teamRow?.primary_color ?? "#3B82F6")}
+          />
 
           {/* Geçmiş */}
           <div>

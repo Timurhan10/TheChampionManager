@@ -30,6 +30,10 @@ export interface MatchController {
   setClock: (minute: number, label?: string) => void;
   goal: (team: "home" | "away") => void;
   card: (team: "home" | "away", color: "yellow" | "red") => void;
+  // Motor-güdümlü mod: normalize [0,1] pozisyonlar (ev sahibi altta, y=1 alt)
+  setPositions: (home: { x: number; y: number }[], away: { x: number; y: number }[]) => void;
+  setBall: (x: number, y: number) => void;
+  trigger: (kind: "goal" | "save" | "shot" | "tackle", team: "home" | "away") => void;
   destroy: () => void;
 }
 
@@ -49,6 +53,11 @@ class MatchScene extends Phaser.Scene {
   ballControlled = false; // gol animasyonu sırasında true
   passAccum = 0;
   passInterval = 800;
+
+  // Motor-güdümlü mod
+  driven = false;
+  homeTarget: [number, number][] = [];
+  awayTarget: [number, number][] = [];
 
   constructor() {
     super("match");
@@ -106,6 +115,7 @@ class MatchScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number) {
+    if (this.driven) { this.driveUpdate(delta); return; }
     if (!this.ballControlled) {
       // Topu hedefe doğru yumuşakça taşı
       const kb = Math.min(1, (delta / 1000) * 3.2);
@@ -203,6 +213,57 @@ class MatchScene extends Phaser.Scene {
     rect.setScale(0);
     this.tweens.add({ targets: rect, scale: 1.4, duration: 250, yoyo: true, hold: 600, onComplete: () => rect.destroy() });
   }
+
+  // --- Motor-güdümlü mod ---
+  setPositions(home: { x: number; y: number }[], away: { x: number; y: number }[]) {
+    this.driven = true;
+    this.homeTarget = home.map((p) => [p.x * W, p.y * H]);
+    this.awayTarget = away.map((p) => [p.x * W, p.y * H]);
+  }
+
+  setBall(x: number, y: number) {
+    this.ballTargetX = x * W;
+    this.ballTargetY = y * H;
+  }
+
+  driveUpdate(delta: number) {
+    const kp = Math.min(1, (delta / 1000) * 9);
+    for (let i = 0; i < this.homeDots.length; i++) {
+      const t = this.homeTarget[i]; if (!t) continue;
+      this.homeDots[i].x += (t[0] - this.homeDots[i].x) * kp;
+      this.homeDots[i].y += (t[1] - this.homeDots[i].y) * kp;
+    }
+    for (let i = 0; i < this.awayDots.length; i++) {
+      const t = this.awayTarget[i]; if (!t) continue;
+      this.awayDots[i].x += (t[0] - this.awayDots[i].x) * kp;
+      this.awayDots[i].y += (t[1] - this.awayDots[i].y) * kp;
+    }
+    const kb = Math.min(1, (delta / 1000) * 13);
+    this.ball.x += (this.ballTargetX - this.ball.x) * kb;
+    this.ball.y += (this.ballTargetY - this.ball.y) * kb;
+  }
+
+  trigger(kind: "goal" | "save" | "shot" | "tackle", team: "home" | "away") {
+    if (kind === "goal") { this.celebrate(team); return; }
+    if (kind === "save") {
+      const y = team === "home" ? H - 44 : 44;
+      const f = this.add.circle(W / 2, y, 30, 0x38bdf8).setAlpha(0.5);
+      this.tweens.add({ targets: f, alpha: 0, scale: 1.6, duration: 400, onComplete: () => f.destroy() });
+    } else if (kind === "tackle") {
+      const f = this.add.circle(this.ball.x, this.ball.y, 12, 0xf59e0b).setAlpha(0.6);
+      this.tweens.add({ targets: f, alpha: 0, scale: 1.8, duration: 350, onComplete: () => f.destroy() });
+    }
+  }
+
+  celebrate(team: "home" | "away") {
+    const targetY = team === "home" ? 40 : H - 40;
+    const flash = this.add.rectangle(W / 2, H / 2, W, H, 0xffffff).setAlpha(0.55);
+    this.tweens.add({ targets: flash, alpha: 0, duration: 500, onComplete: () => flash.destroy() });
+    for (let i = 0; i < 24; i++) {
+      const c = this.add.circle(W / 2, targetY, 4, Phaser.Display.Color.RandomRGB().color);
+      this.tweens.add({ targets: c, x: W / 2 + Phaser.Math.Between(-200, 200), y: targetY + Phaser.Math.Between(-120, 120), alpha: 0, duration: 900, onComplete: () => c.destroy() });
+    }
+  }
 }
 
 export function createMatchGame(
@@ -230,6 +291,9 @@ export function createMatchGame(
     setClock: (m, l) => scene()?.setClock(m, l),
     goal: (t) => scene()?.goal(t),
     card: (t, c) => scene()?.card(t, c),
+    setPositions: (h, a) => scene()?.setPositions(h, a),
+    setBall: (x, y) => scene()?.setBall(x, y),
+    trigger: (k, t) => scene()?.trigger(k, t),
     destroy: () => game.destroy(true),
   };
 }

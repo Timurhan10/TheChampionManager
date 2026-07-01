@@ -39,6 +39,9 @@ export default function LiveMatchCanvas({
   const [homeScore, setHomeScore] = useState(0);
   const [awayScore, setAwayScore] = useState(0);
   const [feed, setFeed] = useState<MatchEvent[]>([]);
+  const [speed, setSpeed] = useState(1);
+  const speedRef = useRef(1);
+  const SPEEDS = [{ v: 1, label: "Yavaş" }, { v: 4, label: "Orta" }, { v: 16, label: "Çok Hızlı" }];
 
   // Stale closure'dan kaçınmak için ref'ler
   const idxRef = useRef(0);
@@ -89,7 +92,7 @@ export default function LiveMatchCanvas({
     if (!playing || !ready || (phase !== "first" && phase !== "second")) return;
     const ctrl = controllerRef.current;
     const timer = setInterval(() => {
-      elapsedRef.current += TICK_MS;
+      elapsedRef.current += TICK_MS * speedRef.current;
       const frac = Math.min(1, elapsedRef.current / HALF_REAL_MS);
 
       if (phase === "first") {
@@ -173,9 +176,14 @@ export default function LiveMatchCanvas({
         {phase === "done" && (
           <span className="text-sm text-text-2 font-semibold">Maç bitti — sonuç kaydedildi.</span>
         )}
-        <span className="ml-auto text-xs text-text-faint">
-          {phase === "halftime" ? "Devre arası" : "Süre: 5 dk + 5 dk"}
-        </span>
+        <div className="ml-auto flex gap-1 bg-panel-inset rounded-lg p-1">
+          {SPEEDS.map((s) => (
+            <button key={s.v} onClick={() => { setSpeed(s.v); speedRef.current = s.v; }}
+              className={cn("px-2.5 py-1 rounded text-xs font-semibold", speed === s.v ? "bg-emerald text-emerald-ink" : "text-text-muted hover:text-text-cm")}>
+              {s.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Canlı yorum */}

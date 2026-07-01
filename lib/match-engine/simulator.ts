@@ -62,7 +62,7 @@ const MID_ATTRS: AttributeKey[] = ["passing", "vision", "teamwork", "work_rate",
 const ATT_W: Record<Position, number> = { FW: 1.0, MF: 0.55, DF: 0.15, GK: 0 };
 const DEF_W: Record<Position, number> = { GK: 1.0, DF: 1.0, MF: 0.4, FW: 0.1 };
 
-function startingEleven(team: EngineTeam): Player[] {
+export function startingEleven(team: EngineTeam): Player[] {
   const byId = new Map(team.players.map((p) => [p.id, p]));
   const lineupIds = team.tactics?.lineup ? Object.values(team.tactics.lineup).filter(Boolean) : [];
   let eleven = (lineupIds as string[]).map((id) => byId.get(id)).filter(Boolean) as Player[];
