@@ -63,13 +63,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Oyuncu zaten elden çıkmış." }, { status: 400 });
   }
 
-  // Parayı HEMEN öde. Ödeme yapılamazsa satışı geri al (para asla kaybolmaz).
-  const { data: u, error: readErr } = await svc.from("users").select("credits").eq("id", user.id).maybeSingle();
-  if (readErr || !u) {
-    await svc.from("players").update({ team_id: team.id, for_sale: false, asking_price: null }).eq("id", player.id);
-    return NextResponse.json({ error: "Bakiye okunamadı, tekrar dene." }, { status: 500 });
-  }
-  const { error: payErr } = await svc.from("users").update({ credits: u.credits + price }).eq("id", user.id);
+  // Parayı HEMEN öde (atomik artış — paralel satışlarda para kaybolmaz).
+  const { error: payErr } = await svc.rpc("add_credits", { uid: user.id, delta: price });
   if (payErr) {
     await svc.from("players").update({ team_id: team.id, for_sale: false, asking_price: null }).eq("id", player.id);
     return NextResponse.json({ error: "Ödeme yapılamadı, tekrar dene." }, { status: 500 });

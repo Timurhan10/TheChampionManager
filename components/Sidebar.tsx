@@ -22,6 +22,7 @@ const ICONS = {
   settings: icon(<><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" /></>),
   admin: icon(<><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" /><path d="m9 12 2 2 4-4" /></>),
   chevron: icon(<path d="m6 9 6 6 6-6" />),
+  home: icon(<><path d="M3 9.5 12 3l9 6.5" /><path d="M5 10v10h11V10" /><path d="M9 20v-6h4v6" /></>),
 };
 
 export default function Sidebar({ teamName, username, isAdmin = false }: { teamName?: string; username?: string; isAdmin?: boolean }) {
@@ -55,15 +56,16 @@ export default function Sidebar({ teamName, username, isAdmin = false }: { teamN
 
   return (
     <aside className="w-[220px] shrink-0 bg-bg-sidebar border-r border-border-cm flex flex-col">
-      <div className="px-5 py-5 flex items-center gap-3">
+      <Link href="/dashboard" className="px-5 py-5 flex items-center gap-3 hover:opacity-90 transition-opacity" title="Ana Ekran">
         <div className="w-[30px] h-[30px] bg-emerald rotate-45 rounded-[6px]" />
         <div className="leading-none">
           <div className="font-display font-extrabold text-[15px] tracking-[1.5px]">CHAMPION</div>
           <div className="font-display font-semibold text-[11px] tracking-[4.5px] text-emerald">MANAGER</div>
         </div>
-      </div>
+      </Link>
 
       <nav className="flex-1 px-2 py-2 space-y-0.5 overflow-y-auto">
+        {item("/dashboard", "Ana Ekran", ICONS.home)}
         {/* Takımım — açılır grup */}
         <button onClick={() => setTeamOpen((o) => !o)}
           className={cn("w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13.5px] transition-colors border-l-[3px] border-transparent",

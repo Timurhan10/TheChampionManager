@@ -50,9 +50,7 @@ export async function POST(req: Request) {
   let usersCredited = 0;
   let totalCr = 0;
   for (const [uid, amount] of Array.from(byUser.entries())) {
-    const { data: u } = await svc.from("users").select("credits").eq("id", uid).maybeSingle();
-    if (!u) continue;
-    const { error: payErr } = await svc.from("users").update({ credits: u.credits + amount }).eq("id", uid);
+    const { error: payErr } = await svc.rpc("add_credits", { uid, delta: amount });
     if (payErr) continue;
     usersCredited++;
     totalCr += amount;

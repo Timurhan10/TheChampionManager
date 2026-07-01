@@ -42,14 +42,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Alıcının yeterli CR'si yok, teklif iptal edildi." }, { status: 400 });
   }
 
-  const { data: sellerUser } = await svc.from("users").select("credits").eq("id", user.id).single();
-
-  // Oyuncu devri + CR
+  // Oyuncu devri + CR (atomik artış/azalış — yarış durumu yok)
   await svc.from("players").update({ team_id: transfer.to_team_id, for_sale: false, asking_price: null }).eq("id", transfer.player_id);
-  await svc.from("users").update({ credits: buyerUser.credits - transfer.offer_amount }).eq("id", buyerTeam.user_id);
-  if (sellerUser) {
-    await svc.from("users").update({ credits: sellerUser.credits + transfer.offer_amount }).eq("id", user.id);
-  }
+  await svc.rpc("add_credits", { uid: buyerTeam.user_id, delta: -transfer.offer_amount });
+  await svc.rpc("add_credits", { uid: user.id, delta: transfer.offer_amount });
   await svc.from("transfers").update({ status: "accepted", resolved_at: new Date().toISOString() }).eq("id", transfer.id);
 
   // Aynı oyuncuya gelen diğer bekleyen teklifleri iptal et

@@ -110,15 +110,8 @@ export async function processSales(svc: SupabaseClient): Promise<{ processed: nu
 
   for (const [userId, sales] of Array.from(byUser.entries())) {
     const total = sales.reduce((sum, s) => sum + s.price, 0);
-    const { data: u, error: readErr } = await svc.from("users").select("credits").eq("id", userId).maybeSingle();
-
-    if (readErr || !u) {
-      // Kullanıcı satırı okunamadı → satışları geri al, para kaybetme.
-      for (const s of sales) { await revert(s); reverted++; }
-      continue;
-    }
-
-    const { error: payErr } = await svc.from("users").update({ credits: u.credits + total }).eq("id", userId);
+    // Atomik artış (yarış durumu yok). Ödeme yapılamazsa satışları geri al.
+    const { error: payErr } = await svc.rpc("add_credits", { uid: userId, delta: total });
     if (payErr) {
       for (const s of sales) { await revert(s); reverted++; }
       continue;
