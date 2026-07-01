@@ -5,6 +5,9 @@ import {
   ALL_ATTRS,
   ALL_OUTFIELD_ATTRS,
   GOALKEEPING_ATTRS,
+  MENTAL_ATTRS,
+  PHYSICAL_ATTRS,
+  keyAttrs,
   type AttributeKey,
 } from "./attributes";
 import type { Position } from "@/types/game";
@@ -135,32 +138,16 @@ function bump(
   if (max && attributes[key]! > max + 2) attributes[key] = max + 2;
 }
 
+// FM tabanlı, dengeli pozisyon eğilimi: pozisyonun anahtar özelliklerini belirgin
+// (ama abartısız) yükseltir. Böylece bir stoper savunmada, forvet hücumda öne çıkar.
 function applyPositionBias(
   attributes: Record<string, number | null>,
   position: Position,
   max: number
 ) {
-  const b = 2;
-  switch (position) {
-    case "FW":
-      bump(attributes, "shooting", b, max);
-      bump(attributes, "off_the_ball", b, max);
-      bump(attributes, "pace", b, max);
-      break;
-    case "MF":
-      bump(attributes, "passing", b, max);
-      bump(attributes, "vision", b, max);
-      bump(attributes, "stamina", b, max);
-      break;
-    case "DF":
-      bump(attributes, "tackling", b, max);
-      bump(attributes, "positioning", b, max);
-      bump(attributes, "strength", b, max);
-      break;
-    case "GK":
-      bump(attributes, "reflexes", b, max);
-      bump(attributes, "handling", b, max);
-      break;
+  const b = 3; // dengeli vurgu
+  for (const key of keyAttrs(position)) {
+    bump(attributes, key, b, max);
   }
 }
 
@@ -176,6 +163,26 @@ export function averageRating(source: Partial<Record<AttributeKey, number | null
   return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
 }
 
+// Pozisyon-ağırlıklı genel puan: pozisyonun anahtar özellikleri daha çok ağırlık yapar.
+// Kaleci için alakasız teknik özellikler (şut vb.) hesaba katılmaz.
+export function overallRating(
+  source: Partial<Record<AttributeKey, number | null>>,
+  position: string,
+): number {
+  const keySet = new Set(keyAttrs(position));
+  const pool = position === "GK"
+    ? [...GOALKEEPING_ATTRS, ...MENTAL_ATTRS, ...PHYSICAL_ATTRS]
+    : ALL_OUTFIELD_ATTRS;
+  let sum = 0, w = 0;
+  for (const key of pool) {
+    const v = source[key];
+    if (typeof v !== "number") continue;
+    const weight = keySet.has(key) ? 2.2 : 0.7;
+    sum += v * weight; w += weight;
+  }
+  return w ? Math.round(sum / w) : 0;
+}
+
 // Değer hesabı: ortalama attribute + yaş + potansiyel
 // Genç 5-15k | Orta 15-30k | İyi 30-45k | Elit 45-60k CR aralığına yaklaşır.
 function computeValue(
@@ -184,7 +191,7 @@ function computeValue(
   age: number,
   potential: number
 ): number {
-  const avg = averageRating(attributes); // ~8-14
+  const avg = overallRating(attributes, position); // pozisyon-ağırlıklı ~8-16
   let base = (avg - 6) * 4000; // 8 -> 8k, 14 -> 32k
 
   // Genç + yüksek potansiyel primi

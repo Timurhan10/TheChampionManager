@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { averageRating } from "@/lib/player-generator";
+import { overallRating } from "@/lib/player-generator";
 import { POSITION_COLORS, ratingColor } from "@/lib/attributes";
 import { FORMATIONS, shortName } from "@/lib/formations";
 import type { Player, Tactics, LineupPreset } from "@/types/game";
@@ -88,7 +88,7 @@ export default function FirstElevenEditor({ players, initial }: { players: Playe
     dragRef.current = item;
     if (player && e.dataTransfer) {
       const color = POSITION_COLORS[player.position]?.color ?? "#10B981";
-      const label = player.shirt_number ?? averageRating(player);
+      const label = player.shirt_number ?? overallRating(player, player.position);
       const badge = document.createElement("div");
       badge.textContent = String(label);
       badge.style.cssText =
@@ -123,7 +123,7 @@ export default function FirstElevenEditor({ players, initial }: { players: Playe
   function autoFill() {
     const next: Record<string, string> = {};
     const used = new Set<string>();
-    const pool = [...players].sort((a, b) => averageRating(b) - averageRating(a));
+    const pool = [...players].sort((a, b) => overallRating(b, b.position) - overallRating(a, a.position));
     slots.forEach((slot, i) => {
       let pick = pool.find((p) => !used.has(p.id) && p.position === slot.role);
       if (!pick) pick = pool.find((p) => !used.has(p.id));
@@ -235,8 +235,8 @@ export default function FirstElevenEditor({ players, initial }: { players: Playe
                   className={cn("w-10 h-10 rounded-full flex items-center justify-center text-[11px] font-bold border-2 transition-transform active:scale-95",
                     isSel && "ring-2 ring-emerald ring-offset-1 ring-offset-[#0f3d2a] scale-110")}
                   style={{ background: "#0C1524", borderColor: color.color, color: player ? "#F1F5F9" : color.color }}
-                  title={player ? `${player.name} · ${averageRating(player)}` : slot.role}>
-                  {player ? (player.shirt_number ?? averageRating(player)) : slot.role}
+                  title={player ? `${player.name} · ${overallRating(player, player.position)}` : slot.role}>
+                  {player ? (player.shirt_number ?? overallRating(player, player.position)) : slot.role}
                 </button>
                 {player ? (
                   <span className="text-[9px] text-white/90 bg-black/40 rounded px-1 max-w-[72px] truncate">{shortName(player.name)}</span>
@@ -268,7 +268,7 @@ export default function FirstElevenEditor({ players, initial }: { players: Playe
                   <span className="w-5 h-5 rounded text-[8px] font-bold flex items-center justify-center shrink-0" style={{ background: POSITION_COLORS[p.position].bg, color: POSITION_COLORS[p.position].color }}>{p.position}</span>
                   <span className="truncate">{shortName(p.name)}</span>
                 </span>
-                <span className="font-display font-bold shrink-0 ml-1" style={{ color: ratingColor(averageRating(p)) }}>{averageRating(p)}</span>
+                <span className="font-display font-bold shrink-0 ml-1" style={{ color: ratingColor(overallRating(p, p.position)) }}>{overallRating(p, p.position)}</span>
               </button>
             );
           })}

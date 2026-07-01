@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { averageRating } from "@/lib/player-generator";
+import { overallRating } from "@/lib/player-generator";
 import { POSITION_COLORS, ratingColor } from "@/lib/attributes";
 import type { Player, Tactics, PlayerInstruction } from "@/types/game";
 import { FORMATIONS, shortName } from "@/lib/formations";
@@ -102,7 +102,7 @@ export default function TacticsBoard({ players, initial }: { players: Player[]; 
     dragRef.current = item;
     if (player && e.dataTransfer) {
       const color = POSITION_COLORS[player.position]?.color ?? "#10B981";
-      const label = player.shirt_number ?? averageRating(player);
+      const label = player.shirt_number ?? overallRating(player, player.position);
       const badge = document.createElement("div");
       badge.textContent = String(label);
       badge.style.cssText =
@@ -147,7 +147,7 @@ export default function TacticsBoard({ players, initial }: { players: Player[]; 
     // Pozisyona uygun, en yüksek rating'li 11 oyuncuyu otomatik yerleştir
     const next: Record<string, string> = {};
     const used = new Set<string>();
-    const pool = [...players].sort((a, b) => averageRating(b) - averageRating(a));
+    const pool = [...players].sort((a, b) => overallRating(b, b.position) - overallRating(a, a.position));
     slots.forEach((slot, i) => {
       let pick = pool.find((p) => !used.has(p.id) && p.position === slot.role);
       if (!pick) pick = pool.find((p) => !used.has(p.id));
@@ -221,8 +221,8 @@ export default function TacticsBoard({ players, initial }: { players: Player[]; 
                   onDragEnd={onDragEndCleanup}
                   className="w-9 h-9 rounded-full flex items-center justify-center text-[10px] font-bold border-2 cursor-grab active:cursor-grabbing"
                   style={{ background: "#0C1524", borderColor: color.color, color: player ? "#F1F5F9" : color.color }}
-                  title={player ? `${player.name} · ${averageRating(player)}` : slot.role}>
-                  {player ? (player.shirt_number ?? averageRating(player)) : slot.role}
+                  title={player ? `${player.name} · ${overallRating(player, player.position)}` : slot.role}>
+                  {player ? (player.shirt_number ?? overallRating(player, player.position)) : slot.role}
                 </div>
                 {player ? (
                   <div className="flex items-center gap-0.5">
@@ -277,7 +277,7 @@ export default function TacticsBoard({ players, initial }: { players: Player[]; 
                   <span className="w-4 h-4 rounded text-[8px] font-bold flex items-center justify-center" style={{ background: POSITION_COLORS[p.position].bg, color: POSITION_COLORS[p.position].color }}>{p.position}</span>
                   <Link href={`/player/${p.id}`} draggable={false} className="truncate hover:text-emerald" onClick={(e) => e.stopPropagation()}>{shortName(p.name)}</Link>
                 </span>
-                <span className="font-display font-bold" style={{ color: ratingColor(averageRating(p)) }}>{averageRating(p)}</span>
+                <span className="font-display font-bold" style={{ color: ratingColor(overallRating(p, p.position)) }}>{overallRating(p, p.position)}</span>
               </div>
             ))}
           </div>

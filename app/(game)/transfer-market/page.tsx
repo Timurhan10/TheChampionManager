@@ -8,7 +8,7 @@ import MarketSeedButton from "@/components/MarketSeedButton";
 import MarketAutoRefresh from "@/components/MarketAutoRefresh";
 import ProcessSalesButton from "@/components/ProcessSalesButton";
 import PlayerCompare, { type ComparePlayer } from "@/components/PlayerCompare";
-import { averageRating } from "@/lib/player-generator";
+import { overallRating } from "@/lib/player-generator";
 import { POSITION_COLORS, ratingColor } from "@/lib/attributes";
 import { formatNumber, teamBadge } from "@/lib/utils";
 import type { Player } from "@/types/game";
@@ -45,7 +45,7 @@ export default async function TransferMarketPage() {
     return {
       id: p.id, name: p.name, position: p.position, age: p.age,
       value_cr: p.asking_price ?? p.value_cr,
-      overall: scouted ? averageRating(p) : null,
+      overall: scouted ? overallRating(p, p.position) : null,
       potential: null, attrs: null,
     };
   });
@@ -54,7 +54,7 @@ export default async function TransferMarketPage() {
   const ownCompare: ComparePlayer[] = (mySquad as Player[] ?? []).map((p) => ({
     id: p.id, name: p.name, position: p.position, age: p.age,
     value_cr: p.value_cr,
-    overall: averageRating(p),
+    overall: overallRating(p, p.position),
     potential: p.potential,
     attrs: p as unknown as Record<string, number | null>,
   }));
@@ -104,7 +104,7 @@ export default async function TransferMarketPage() {
                 const scouted = (revealed.get(p.id)?.size ?? 0) > 0;
                 const free = p.team_id == null;
                 const price = p.asking_price ?? p.value_cr;
-                const rating = averageRating(p);
+                const rating = overallRating(p, p.position);
                 return (
                   <div key={p.id} className="grid grid-cols-[1.6fr_48px_1fr_90px_100px_84px] gap-2 px-4 py-2.5 items-center border-b border-border-soft last:border-0 hover:bg-panel-inset/40">
                     <div className="flex items-center gap-2.5">

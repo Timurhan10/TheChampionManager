@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CATEGORY_ATTRS, CATEGORY_LABELS, ATTR_LABELS, POSITION_COLORS, ratingColor, type AttributeCategory } from "@/lib/attributes";
+import { CATEGORY_ATTRS, CATEGORY_LABELS, ATTR_LABELS, POSITION_COLORS, ratingColor, keyAttrs, type AttributeCategory } from "@/lib/attributes";
 import { formatNumber } from "@/lib/utils";
 
 export interface ComparePlayer {
@@ -45,6 +45,8 @@ export default function PlayerCompare({
   }, [a?.position, b?.position]);
 
   const bothAttrs = !!(a?.attrs && b?.attrs);
+  const keyA = new Set(a ? keyAttrs(a.position) : []);
+  const keyB = new Set(b ? keyAttrs(b.position) : []);
 
   if (left.length === 0 || right.length === 0) {
     return (
@@ -113,11 +115,15 @@ export default function PlayerCompare({
               categories.map((cat) => (
                 <div key={cat} className="mt-2">
                   <div className="text-[10px] font-bold uppercase tracking-wide text-emerald/80 py-1.5 border-b border-border-soft">{CATEGORY_LABELS[cat]}</div>
-                  {CATEGORY_ATTRS[cat].map((key) => (
-                    <Row key={key} label={ATTR_LABELS[key]}
-                      a={cmpCell((a.attrs as any)[key] ?? null, (b.attrs as any)[key] ?? null, "a")}
-                      b={cmpCell((a.attrs as any)[key] ?? null, (b.attrs as any)[key] ?? null, "b")} />
-                  ))}
+                  {CATEGORY_ATTRS[cat].map((key) => {
+                    const isKey = keyA.has(key) || keyB.has(key);
+                    return (
+                      <Row key={key}
+                        label={<span className={isKey ? "text-emerald font-semibold" : undefined}>{ATTR_LABELS[key]}{isKey ? " ★" : ""}</span>}
+                        a={cmpCell((a.attrs as any)[key] ?? null, (b.attrs as any)[key] ?? null, "a")}
+                        b={cmpCell((a.attrs as any)[key] ?? null, (b.attrs as any)[key] ?? null, "b")} />
+                    );
+                  })}
                 </div>
               ))
             ) : (
@@ -136,7 +142,7 @@ export default function PlayerCompare({
   );
 }
 
-function Row({ label, a, b }: { label: string; a: React.ReactNode; b: React.ReactNode }) {
+function Row({ label, a, b }: { label: React.ReactNode; a: React.ReactNode; b: React.ReactNode }) {
   return (
     <div className="grid grid-cols-[1fr_70px_1fr] items-center py-1 text-sm">
       <div className="text-left">{a}</div>

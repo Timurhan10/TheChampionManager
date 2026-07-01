@@ -174,6 +174,19 @@ export function defaultVisibleAttrs(position: string): AttributeKey[] {
   return DEFAULT_VISIBLE_ATTRS[position] ?? DEFAULT_VISIBLE_ATTRS.MF;
 }
 
+// FM'e göre pozisyonun ÖNE ÇIKAN (anahtar) özellikleri — tek kaynak.
+// Üretim eğilimi, pozisyon-ağırlıklı genel puan ve UI vurgusu bunu kullanır.
+export const KEY_ATTRS: Record<string, AttributeKey[]> = {
+  GK: ["reflexes", "handling", "one_on_ones", "command_of_area", "positioning", "concentration", "anticipation"],
+  DF: ["tackling", "positioning", "heading", "strength", "jumping", "anticipation", "composure", "concentration"],
+  MF: ["passing", "vision", "stamina", "work_rate", "technique", "teamwork", "decisions", "first_touch"],
+  FW: ["shooting", "off_the_ball", "composure", "anticipation", "first_touch", "pace", "dribbling", "long_shots"],
+};
+
+export function keyAttrs(position: string): AttributeKey[] {
+  return KEY_ATTRS[position] ?? KEY_ATTRS.MF;
+}
+
 // Attribute / rating renk eşikleri (1-20 skala)
 export function ratingColor(value: number | null | undefined): string {
   if (value == null) return "#475A73";
