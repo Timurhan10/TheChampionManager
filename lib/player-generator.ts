@@ -193,17 +193,19 @@ export function overallRating(
 
 // Değer hesabı: ortalama attribute + yaş + potansiyel
 // Genç 5-15k | Orta 15-30k | İyi 30-45k | Elit 45-60k CR aralığına yaklaşır.
-function computeValue(
+// Export: antrenman/cron sonrası oyuncu değeri bu formülle YENİDEN hesaplanır
+// (gelişim → değer artışı) — al-geliştir-sat ticareti buna dayanır.
+export function computeValue(
   attributes: Record<string, number | null>,
   position: Position,
   age: number,
-  potential: number
+  potential: number | null
 ): number {
   const avg = overallRating(attributes, position); // pozisyon-ağırlıklı ~8-16
   let base = (avg - 6) * 4000; // 8 -> 8k, 14 -> 32k
 
   // Genç + yüksek potansiyel primi
-  if (age <= 21) base += (potential - 10) * 1500;
+  if (age <= 21) base += ((potential ?? 10) - 10) * 1500;
   // Veteran düşüşü
   if (age >= 31) base -= (age - 30) * 2500;
 

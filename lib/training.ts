@@ -38,9 +38,15 @@ function strengthCoef(v: number): number {
   if (v <= 19) return 0.4;
   return 0.2;
 }
-function facilityCoef(level: number): number {
+export function facilityCoef(level: number): number {
   return [0, 1.0, 1.15, 1.3, 1.4, 1.5][clamp(level, 1, 5)];
 }
+
+// Tesis yükseltme: hedef seviye → CR maliyeti. CR gideri + kalıcı gelişim yatırımı
+// (facilityCoef antrenman kazancını çarpar). Seviye 5 en üst.
+export const FACILITY_COSTS: Record<number, number> = { 2: 40000, 3: 80000, 4: 150000, 5: 250000 };
+export const FACILITY_MAX_LEVEL = 5;
+export const FACILITY_LABELS = ["", "Normal", "İyi", "Çok İyi", "Üst Düzey", "Elit"];
 
 export interface TrainingGain { key: AttributeKey; label: string; amount: number; newValue: number; levelUp: boolean; }
 export interface TrainingResult {

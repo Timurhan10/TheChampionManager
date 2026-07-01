@@ -23,6 +23,22 @@ export function computeSellPrice(p: {
   return Math.max(500, Math.round((base * factor) / 100) * 100);
 }
 
+// --- Alım fiyatı: değer × pozisyon talebi × yaş primi × %10 alım spreadi ---
+// Spread sayesinde anlık al-sat arbitrajı kapalı: kâr etmek için oyuncuyu
+// GELİŞTİRMEK gerekir (genç + potansiyelli al → antrenmanla büyüt → değer artınca sat).
+export function computeBuyPrice(p: {
+  value_cr: number;
+  age: number;
+  position: string;
+  potential?: number | null;
+}): number {
+  const demand = p.position === "FW" ? 1.08 : p.position === "MF" ? 1.0 : p.position === "DF" ? 0.97 : 0.94;
+  const pot = p.potential ?? 10;
+  const agePremium = p.age <= 21 && pot >= 14 ? 1.15 : p.age <= 23 ? 1.08 : p.age >= 31 ? 0.85 : 1.0;
+  const price = (p.value_cr ?? 0) * demand * agePremium * 1.10;
+  return Math.max(1000, Math.round(price / 100) * 100);
+}
+
 // --- Otomatik satış (GİZLİ): piyasa değeri + performans + yaş + mevki + talep ---
 interface SaleInput {
   value_cr: number;

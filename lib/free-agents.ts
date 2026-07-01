@@ -2,6 +2,7 @@
 // sınırsız büyümez. Kalite katmanlı üretim (Model A) — çoğu vasat, yıldız nadir.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { generatePlayer, rollQualityTier } from "./player-generator";
+import { computeBuyPrice } from "./pricing";
 import type { Position } from "@/types/game";
 
 const FREE_AGENT_TARGET = 40;
@@ -36,6 +37,8 @@ export async function topUpFreeAgents(svc: SupabaseClient, target = FREE_AGENT_T
       is_youth_academy: false,
       potential: gen.potential,
       value_cr: gen.value_cr,
+      // Alım fiyatı = değer + spread: al-sat kârı ancak oyuncuyu geliştirerek çıkar.
+      asking_price: computeBuyPrice({ value_cr: gen.value_cr, age: gen.age, position, potential: gen.potential }),
       country: gen.country,
       ...gen.attributes,
     };
@@ -111,11 +114,11 @@ export async function rotateFreeAgents(
 
 // Bir AI takımının 2-3 oyuncusunu satışa çıkarır.
 export async function listAiPlayersForSale(svc: SupabaseClient, teamId: string): Promise<void> {
-  const { data: players } = await svc.from("players").select("id, value_cr").eq("team_id", teamId);
+  const { data: players } = await svc.from("players").select("id, value_cr, age, position, potential").eq("team_id", teamId);
   if (!players || players.length === 0) return;
   const shuffled = [...players].sort(() => Math.random() - 0.5);
   const count = 2 + Math.floor(Math.random() * 2); // 2-3
   for (const p of shuffled.slice(0, count)) {
-    await svc.from("players").update({ for_sale: true, asking_price: (p as any).value_cr }).eq("id", (p as any).id);
+    await svc.from("players").update({ for_sale: true, asking_price: computeBuyPrice(p as any) }).eq("id", (p as any).id);
   }
 }

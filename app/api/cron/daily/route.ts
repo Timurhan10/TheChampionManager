@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { runMatch } from "@/lib/match-engine/run";
 import { processSales } from "@/lib/sales";
 import { rotateFreeAgents } from "@/lib/free-agents";
+import { computeValue } from "@/lib/player-generator";
 import { notify } from "@/lib/notifications";
 
 // Tek günlük cron orkestratörü (Vercel Hobby cron sayısı sınırı için birleştirildi):
@@ -68,6 +69,38 @@ export async function GET(req: Request) {
   try {
     result.marketRefresh = await rotateFreeAgents(svc);
   } catch (e: any) { result.marketError = e.message; }
+
+  // 5) Oyuncu değerlerini tazele (insan takımları, ~günde bir — app_state gate).
+  //    Antrenman anında güncelliyor; bu adım maç reytingi/yaş gibi zamanla değişen
+  //    etkilerin de değere yansımasını garanti eden günlük süpürme.
+  try {
+    const VALUES_KEY = "player_values_refreshed_at";
+    const VALUES_INTERVAL_MS = 20 * 3600 * 1000; // 20 saat (cron saati kayarsa da günlük kalsın)
+    const { data: st } = await svc.from("app_state").select("value").eq("key", VALUES_KEY).maybeSingle();
+    const last = st?.value ? new Date(String(st.value)).getTime() : 0;
+    if (!Number.isFinite(last) || Date.now() - last >= VALUES_INTERVAL_MS) {
+      const { data: humanTeams } = await svc.from("teams").select("id").eq("is_ai", false);
+      const teamIds = (humanTeams ?? []).map((t: any) => t.id);
+      let updated = 0;
+      if (teamIds.length) {
+        const { data: players } = await svc.from("players").select("*").in("team_id", teamIds);
+        for (const p of players ?? []) {
+          const v = computeValue(p as any, (p as any).position, (p as any).age, (p as any).potential ?? null);
+          if (v !== (p as any).value_cr) {
+            const { error } = await svc.from("players").update({ value_cr: v }).eq("id", (p as any).id);
+            if (!error) updated++;
+          }
+        }
+      }
+      await svc.from("app_state").upsert(
+        { key: VALUES_KEY, value: new Date().toISOString(), updated_at: new Date().toISOString() },
+        { onConflict: "key" },
+      );
+      result.playerValuesUpdated = updated;
+    } else {
+      result.playerValuesUpdated = "skipped";
+    }
+  } catch (e: any) { result.valuesError = e.message; }
 
   return NextResponse.json({ ok: true, ...result });
 }
