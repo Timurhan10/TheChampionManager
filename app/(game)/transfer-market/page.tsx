@@ -22,7 +22,7 @@ export default async function TransferMarketPage() {
   // Satıştaki oyuncular (başkalarının) + serbest ajanlar + kendi kadrom
   const [{ data: forSaleRows }, { data: freeAgents }, { data: myListings }, { data: mySquad }] = await Promise.all([
     supabase.from("players").select("*").eq("for_sale", true).neq("team_id", team.id).limit(60),
-    supabase.from("players").select("*").is("team_id", null).limit(40),
+    supabase.from("players").select("*").is("team_id", null).order("created_at", { ascending: false }).limit(40),
     supabase.from("players").select("*").eq("team_id", team.id).eq("for_sale", true),
     supabase.from("players").select("*").eq("team_id", team.id),
   ]);

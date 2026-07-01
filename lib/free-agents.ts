@@ -36,6 +36,7 @@ export async function topUpFreeAgents(svc: SupabaseClient, target = FREE_AGENT_T
       is_youth_academy: false,
       potential: gen.potential,
       value_cr: gen.value_cr,
+      country: gen.country,
       ...gen.attributes,
     };
   });
@@ -52,21 +53,21 @@ const ROTATE_BATCH = 10;
 // yerine yenilerini ekler. Havuz ~target'ta sınırlı kalır, liste sürekli değişir.
 // Sadece takımsız + satışta olmayan + scout raporu olmayan + bekleyen teklifi
 // olmayan serbest ajanlara dokunur; kullanıcı/AI oyuncuları asla silinmez.
+const REFRESH_STATE_KEY = "free_agents_refreshed_at";
+
 export async function rotateFreeAgents(
   svc: SupabaseClient,
   target = FREE_AGENT_TARGET,
 ): Promise<{ skipped: boolean; removed: number; added: number }> {
-  // 30 dk gate: en yeni serbest ajan yakın zamanda eklendiyse iş yapma.
-  const { data: newest } = await svc
-    .from("players")
-    .select("created_at")
-    .is("team_id", null)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (newest?.created_at && Date.now() - new Date(newest.created_at).getTime() < REFRESH_INTERVAL_MS) {
-    return { skipped: true, removed: 0, added: 0 };
+  // 30 dk gate: GLOBAL son-yenileme damgasına bakar (app_state). Eskiden en yeni
+  // oyuncunun created_at'ine bakıyordu; top-up her seferinde onu tazelediği için
+  // kalıcı kilitleniyordu — o hata giderildi.
+  const { data: st } = await svc.from("app_state").select("value").eq("key", REFRESH_STATE_KEY).maybeSingle();
+  const last = st?.value ? new Date(String(st.value)).getTime() : 0;
+  if (Number.isFinite(last) && Date.now() - last < REFRESH_INTERVAL_MS) {
+    // Kilitli değil — sadece havuzu doldur (boş kalmasın), rotasyon yapma.
+    const added = await topUpFreeAgents(svc, target);
+    return { skipped: true, removed: 0, added };
   }
 
   // Silinmeye uygun en eski serbest ajanlar (satışta olmayanlar).
@@ -99,6 +100,12 @@ export async function rotateFreeAgents(
 
   // Hedefe tamamla (yeni oyuncular ekler).
   const added = await topUpFreeAgents(svc, target);
+
+  // Son yenileme damgasını güncelle (sonraki 30 dk boyunca skip).
+  await svc.from("app_state").upsert(
+    { key: REFRESH_STATE_KEY, value: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { onConflict: "key" },
+  );
   return { skipped: false, removed, added };
 }
 

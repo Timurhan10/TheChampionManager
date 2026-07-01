@@ -3,8 +3,70 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { SCOUT_PACKAGES, SCOUT_UPGRADE_CMP, type ScoutLevelPkg } from "@/lib/scouting";
+import { COUNTRIES } from "@/lib/countries";
 import { POSITION_COLORS } from "@/lib/attributes";
 import { formatNumber, cn } from "@/lib/utils";
+
+const DUR_LABEL: Record<ScoutLevelPkg, string> = { basic: "Anlık", detailed: "12 saat", full: "48 saat" };
+
+// Ülkeye direktör gönder → süreye göre 1-3 oyuncu keşfet.
+export function CountryScout() {
+  const router = useRouter();
+  const [country, setCountry] = useState(COUNTRIES[0].key);
+  const [level, setLevel] = useState<ScoutLevelPkg>("detailed");
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+
+  async function send() {
+    setLoading(true); setMsg(null);
+    try {
+      const res = await fetch("/api/scouting/country", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ country, level }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error);
+      setMsg({ text: d.instant ? `${d.count} oyuncu bulundu!` : `Direktör ${d.country}'ya gönderildi (${DUR_LABEL[level]}).`, ok: true });
+      router.refresh();
+    } catch (e: any) { setMsg({ text: e.message, ok: false }); } finally { setLoading(false); }
+  }
+
+  return (
+    <div className="bg-panel border border-border-cm rounded-card p-5">
+      <div className="section-label mb-1">Ülkeye Direktör Gönder</div>
+      <p className="text-xs text-text-muted mb-3">Bir ülke seç, süreye göre 1-3 yeni oyuncu keşfet. Uzun süre = daha kaliteli oyuncu + daha çok bilgi.</p>
+
+      <div className="flex flex-wrap gap-1.5 mb-3">
+        {COUNTRIES.map((c) => (
+          <button key={c.key} onClick={() => setCountry(c.key)}
+            className={cn("px-2.5 py-1.5 rounded-lg text-sm border", country === c.key ? "border-emerald bg-emerald/10 text-emerald" : "border-border-cm bg-panel-inset text-text-muted")}>
+            <span className="mr-1">{c.flag}</span>{c.name}
+          </button>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-3 gap-2 mb-3">
+        {(Object.keys(SCOUT_PACKAGES) as ScoutLevelPkg[]).map((key) => {
+          const p = SCOUT_PACKAGES[key];
+          return (
+            <button key={key} onClick={() => setLevel(key)}
+              className={cn("p-2.5 rounded-lg border text-left", level === key ? "border-emerald bg-emerald/10" : "border-border-cm bg-panel-inset")}>
+              <div className="font-semibold text-sm">{DUR_LABEL[key]}</div>
+              <div className="text-[10px] text-text-muted">{key === "basic" ? "az bilgi" : key === "detailed" ? "orta bilgi" : "tam bilgi"}</div>
+              <div className="text-xs font-display font-bold text-emerald mt-1">{formatNumber(p.cost)} CR</div>
+            </button>
+          );
+        })}
+      </div>
+
+      <button onClick={send} disabled={loading}
+        className="w-full bg-emerald text-emerald-ink font-semibold py-2.5 rounded-lg hover:bg-emerald-bright text-sm disabled:opacity-50">
+        {loading ? "Gönderiliyor…" : "Direktör Gönder"}
+      </button>
+      {msg && <p className={`text-xs mt-2 ${msg.ok ? "text-emerald-bright" : "text-danger"}`}>{msg.text}</p>}
+    </div>
+  );
+}
 
 interface SearchPlayer { id: string; name: string; age: number; position: string; team_id: string | null; }
 
