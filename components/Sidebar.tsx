@@ -25,7 +25,7 @@ const ICONS = {
   home: icon(<><path d="M3 9.5 12 3l9 6.5" /><path d="M5 10v10h11V10" /><path d="M9 20v-6h4v6" /></>),
 };
 
-export default function Sidebar({ teamName, username, isAdmin = false }: { teamName?: string; username?: string; isAdmin?: boolean }) {
+export default function Sidebar({ teamName, username, isAdmin = false, open = false, onNavigate }: { teamName?: string; username?: string; isAdmin?: boolean; open?: boolean; onNavigate?: () => void }) {
   const pathname = usePathname();
   const teamActive = pathname.startsWith("/team") || pathname.startsWith("/first-eleven") || pathname.startsWith("/tactics") || pathname.startsWith("/player");
   const [teamOpen, setTeamOpen] = useState(teamActive);
@@ -33,7 +33,7 @@ export default function Sidebar({ teamName, username, isAdmin = false }: { teamN
   const item = (href: string, label: string, ic: React.ReactNode) => {
     const active = pathname === href || pathname.startsWith(href + "/");
     return (
-      <Link key={href} href={href}
+      <Link key={href} href={href} onClick={onNavigate}
         className={cn("flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13.5px] transition-colors border-l-[3px] border-transparent",
           active ? "bg-emerald/10 border-l-emerald text-text-cm" : "text-text-muted hover:bg-[rgba(148,163,184,0.06)]")}>
         <span className={active ? "text-emerald" : "text-text-faint"}>{ic}</span>
@@ -45,7 +45,7 @@ export default function Sidebar({ teamName, username, isAdmin = false }: { teamN
   const subItem = (href: string, label: string) => {
     const active = pathname === href || pathname.startsWith(href + "/");
     return (
-      <Link key={href} href={href}
+      <Link key={href} href={href} onClick={onNavigate}
         className={cn("flex items-center gap-2 pl-11 pr-3 py-2 rounded-lg text-[13px] transition-colors",
           active ? "text-emerald font-medium" : "text-text-muted hover:text-text-cm")}>
         <span className={cn("w-1.5 h-1.5 rounded-full", active ? "bg-emerald" : "bg-text-faint")} />
@@ -55,8 +55,10 @@ export default function Sidebar({ teamName, username, isAdmin = false }: { teamN
   };
 
   return (
-    <aside className="w-[220px] shrink-0 bg-bg-sidebar border-r border-border-cm flex flex-col">
-      <Link href="/dashboard" className="px-5 py-5 flex items-center gap-3 hover:opacity-90 transition-opacity" title="Ana Ekran">
+    <aside className={cn(
+      "fixed md:static z-40 top-0 left-0 h-full w-[220px] shrink-0 bg-bg-sidebar border-r border-border-cm flex flex-col transition-transform duration-200 md:translate-x-0",
+      open ? "translate-x-0" : "-translate-x-full")}>
+      <Link href="/dashboard" onClick={onNavigate} className="px-5 py-5 flex items-center gap-3 hover:opacity-90 transition-opacity" title="Ana Ekran">
         <div className="w-[30px] h-[30px] bg-emerald rotate-45 rounded-[6px]" />
         <div className="leading-none">
           <div className="font-display font-extrabold text-[15px] tracking-[1.5px]">CHAMPION</div>
