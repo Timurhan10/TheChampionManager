@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { averageRating } from "@/lib/player-generator";
 import { POSITION_COLORS, ratingColor } from "@/lib/attributes";
-import type { Player, Tactics, Position, PlayerInstruction } from "@/types/game";
+import type { Player, Tactics, PlayerInstruction } from "@/types/game";
+import { FORMATIONS, shortName } from "@/lib/formations";
 import { cn } from "@/lib/utils";
 
 // Oyuncu-bazlı talimat segmentleri
@@ -18,60 +19,12 @@ const INSTR_SEGMENTS: { key: keyof PlayerInstruction; label: string; opts: [stri
 ];
 const INSTR_DEFAULT: Required<PlayerInstruction> = { role: "balanced", pressing: "medium", passing: "mixed", run: "hold", risk: "medium", shooting: "normal" };
 
-type Slot = { role: Position; x: number; y: number };
-
-const FORMATIONS: Record<string, Slot[]> = {
-  "4-4-2": [
-    { role: "GK", x: 50, y: 92 },
-    { role: "DF", x: 16, y: 72 }, { role: "DF", x: 38, y: 74 }, { role: "DF", x: 62, y: 74 }, { role: "DF", x: 84, y: 72 },
-    { role: "MF", x: 16, y: 48 }, { role: "MF", x: 38, y: 50 }, { role: "MF", x: 62, y: 50 }, { role: "MF", x: 84, y: 48 },
-    { role: "FW", x: 36, y: 24 }, { role: "FW", x: 64, y: 24 },
-  ],
-  "4-3-3": [
-    { role: "GK", x: 50, y: 92 },
-    { role: "DF", x: 16, y: 72 }, { role: "DF", x: 38, y: 74 }, { role: "DF", x: 62, y: 74 }, { role: "DF", x: 84, y: 72 },
-    { role: "MF", x: 28, y: 50 }, { role: "MF", x: 50, y: 52 }, { role: "MF", x: 72, y: 50 },
-    { role: "FW", x: 22, y: 26 }, { role: "FW", x: 50, y: 22 }, { role: "FW", x: 78, y: 26 },
-  ],
-  "4-2-3-1": [
-    { role: "GK", x: 50, y: 92 },
-    { role: "DF", x: 16, y: 74 }, { role: "DF", x: 38, y: 76 }, { role: "DF", x: 62, y: 76 }, { role: "DF", x: 84, y: 74 },
-    { role: "MF", x: 36, y: 58 }, { role: "MF", x: 64, y: 58 },
-    { role: "MF", x: 24, y: 40 }, { role: "MF", x: 50, y: 38 }, { role: "MF", x: 76, y: 40 },
-    { role: "FW", x: 50, y: 22 },
-  ],
-  "3-5-2": [
-    { role: "GK", x: 50, y: 92 },
-    { role: "DF", x: 28, y: 74 }, { role: "DF", x: 50, y: 76 }, { role: "DF", x: 72, y: 74 },
-    { role: "MF", x: 12, y: 50 }, { role: "MF", x: 32, y: 52 }, { role: "MF", x: 50, y: 54 }, { role: "MF", x: 68, y: 52 }, { role: "MF", x: 88, y: 50 },
-    { role: "FW", x: 38, y: 24 }, { role: "FW", x: 62, y: 24 },
-  ],
-  "5-3-2": [
-    { role: "GK", x: 50, y: 92 },
-    { role: "DF", x: 10, y: 72 }, { role: "DF", x: 30, y: 76 }, { role: "DF", x: 50, y: 78 }, { role: "DF", x: 70, y: 76 }, { role: "DF", x: 90, y: 72 },
-    { role: "MF", x: 28, y: 50 }, { role: "MF", x: 50, y: 52 }, { role: "MF", x: 72, y: 50 },
-    { role: "FW", x: 38, y: 26 }, { role: "FW", x: 62, y: 26 },
-  ],
-  "4-1-4-1": [
-    { role: "GK", x: 50, y: 92 },
-    { role: "DF", x: 16, y: 74 }, { role: "DF", x: 38, y: 76 }, { role: "DF", x: 62, y: 76 }, { role: "DF", x: 84, y: 74 },
-    { role: "MF", x: 50, y: 60 },
-    { role: "MF", x: 16, y: 44 }, { role: "MF", x: 38, y: 44 }, { role: "MF", x: 62, y: 44 }, { role: "MF", x: 84, y: 44 },
-    { role: "FW", x: 50, y: 24 },
-  ],
-};
-
 const SEGMENTS = {
   mentality: { label: "Mentalite", options: [["defensive", "Savunmacı"], ["balanced", "Dengeli"], ["attacking", "Hücumcu"]] },
   pressing: { label: "Pressing", options: [["low", "Düşük"], ["medium", "Orta"], ["high", "Yüksek"]] },
   tempo: { label: "Tempo", options: [["slow", "Yavaş"], ["normal", "Normal"], ["fast", "Hızlı"]] },
   pass_style: { label: "Geçiş", options: [["short", "Kısa"], ["mixed", "Karma"], ["long", "Uzun"]] },
 } as const;
-
-function shortName(name: string): string {
-  const parts = name.split(" ");
-  return parts.length > 1 ? `${parts[0][0]}. ${parts[parts.length - 1]}` : name;
-}
 
 interface DragItem { playerId: string; from: "bench" | number; }
 

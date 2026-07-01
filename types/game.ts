@@ -50,7 +50,20 @@ export interface Tactics {
   lineup: Record<string, string>; // pozisyon slotu -> player_id
   substitutes: string[];
   player_instructions?: Record<string, PlayerInstruction>; // player_id -> talimatlar
+  presets?: LineupPreset[]; // isimli "tüm taktik" kayıtları (max 3)
   updated_at: string;
+}
+
+export interface LineupPreset {
+  name: string;
+  formation: string;
+  mentality: string;
+  pressing: string;
+  tempo: string;
+  pass_style: string;
+  lineup: Record<string, string>;
+  substitutes: string[];
+  player_instructions?: Record<string, PlayerInstruction>;
 }
 
 export interface PlayerInstruction {

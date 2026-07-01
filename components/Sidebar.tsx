@@ -26,7 +26,7 @@ const ICONS = {
 
 export default function Sidebar({ teamName, username, isAdmin = false }: { teamName?: string; username?: string; isAdmin?: boolean }) {
   const pathname = usePathname();
-  const teamActive = pathname.startsWith("/team") || pathname.startsWith("/tactics") || pathname.startsWith("/player");
+  const teamActive = pathname.startsWith("/team") || pathname.startsWith("/first-eleven") || pathname.startsWith("/tactics") || pathname.startsWith("/player");
   const [teamOpen, setTeamOpen] = useState(teamActive);
 
   const item = (href: string, label: string, ic: React.ReactNode) => {
@@ -75,6 +75,7 @@ export default function Sidebar({ teamName, username, isAdmin = false }: { teamN
         {teamOpen && (
           <div className="space-y-0.5 py-0.5">
             {subItem("/team", "Kadro")}
+            {subItem("/first-eleven", "İlk 11")}
             {subItem("/tactics", "Taktik")}
           </div>
         )}
