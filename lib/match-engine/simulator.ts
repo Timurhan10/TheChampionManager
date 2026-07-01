@@ -4,6 +4,8 @@
 import { overallRating } from "@/lib/player-generator";
 import type { AttributeKey } from "@/lib/attributes";
 import type { Player, Tactics, MatchEvent, Position } from "@/types/game";
+import { computeSquadFit } from "./fit";
+import { computeModifiers } from "./modifiers";
 
 export interface EngineTeam {
   teamId: string;
@@ -181,8 +183,14 @@ export function simulateMatch(home: EngineTeam, away: EngineTeam): SimResult {
   const hMent = mentalityFactor(home.tactics), aMent = mentalityFactor(away.tactics);
   const hPress = pressingBonus(home.tactics), aPress = pressingBonus(away.tactics);
 
-  const xgHome = expectedGoals(hAtt, aDef * aMent.def, hMent.att, hPress, 0.35);
-  const xgAway = expectedGoals(aAtt, hDef * hMent.def, aMent.att, aPress, 0.0);
+  // Taktik stili + kadro uyumu çarpanları (Motor v2) — canlı motorla tutarlı.
+  const hFit = computeSquadFit(home.players, home.tactics);
+  const aFit = computeSquadFit(away.players, away.tactics);
+  const hMods = computeModifiers(home.tactics, hFit, home.players);
+  const aMods = computeModifiers(away.tactics, aFit, away.players);
+
+  const xgHome = expectedGoals(hAtt, aDef * aMent.def, hMent.att, hPress, 0.35) * hMods.xgMult * aMods.oppXgMult;
+  const xgAway = expectedGoals(aAtt, hDef * hMent.def, aMent.att, aPress, 0.0) * aMods.xgMult * hMods.oppXgMult;
 
   let homeScore = poisson(xgHome);
   let awayScore = poisson(xgAway);
@@ -242,7 +250,7 @@ export function simulateMatch(home: EngineTeam, away: EngineTeam): SimResult {
   }
 
   // İstatistikler
-  const possHome = Math.round(50 + (hMid - aMid) * 2.2 + rand(-4, 4));
+  const possHome = Math.round(50 + (hMid - aMid) * 2.2 + (hMods.possessionBias - aMods.possessionBias) * 4 + rand(-4, 4));
   const possessionHome = Math.max(30, Math.min(70, possHome));
   const shotsHome = Math.max(homeScore, Math.round(xgHome * 3 + rand(0, 4)));
   const shotsAway = Math.max(awayScore, Math.round(xgAway * 3 + rand(0, 4)));

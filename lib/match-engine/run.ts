@@ -2,6 +2,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { simulateMatch, type EngineTeam, type PlayerRating, type SimResult } from "./simulator";
 import { MATCH_REWARDS } from "@/lib/constants";
+import { STYLE_PRESETS, pickBestStyleForSquad } from "@/lib/tactic-styles";
 import type { Player, Tactics } from "@/types/game";
 
 // Oyuncu reytinglerini biriktirir. matches_played/rating_sum kolonları yoksa (migration 0005
@@ -28,12 +29,28 @@ async function loadTeam(svc: SupabaseClient, teamId: string): Promise<EngineTeam
   const { data: team } = await svc.from("teams").select("id, name, is_ai, user_id").eq("id", teamId).single();
   const { data: players } = await svc.from("players").select("*").eq("team_id", teamId);
   const { data: tactics } = await svc.from("tactics").select("*").eq("team_id", teamId).maybeSingle();
+
+  const squad = (players ?? []) as Player[];
+  let t = (tactics as Tactics) ?? null;
+
+  // AI takımlar kadrolarına en uygun stille oynar (bellekte; DB'ye yazılmaz).
+  if ((team?.is_ai ?? true) && !t?.style && squad.length >= 11) {
+    const style = pickBestStyleForSquad(squad);
+    const preset = STYLE_PRESETS[style].settings;
+    t = {
+      ...(t ?? { id: "", team_id: teamId, formation: "4-4-2", lineup: {}, substitutes: [], updated_at: "" }),
+      mentality: preset.mentality, pressing: preset.pressing, tempo: preset.tempo, pass_style: preset.pass_style,
+      style,
+      advanced: { width: preset.width, defensive_line: preset.defensive_line, time_wasting: preset.time_wasting ?? false, counter_attack: preset.counter_attack ?? false },
+    } as Tactics;
+  }
+
   return {
     teamId,
     name: team?.name ?? "—",
     isAi: team?.is_ai ?? true,
-    players: (players ?? []) as Player[],
-    tactics: (tactics as Tactics) ?? null,
+    players: squad,
+    tactics: t,
   };
 }
 

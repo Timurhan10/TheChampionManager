@@ -4,8 +4,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { overallRating } from "@/lib/player-generator";
 import { POSITION_COLORS, ratingColor } from "@/lib/attributes";
-import type { Player, Tactics, PlayerInstruction } from "@/types/game";
+import type { Player, Tactics, PlayerInstruction, TacticStyle, TacticAdvanced } from "@/types/game";
 import { FORMATIONS, shortName } from "@/lib/formations";
+import { STYLE_PRESETS, ALL_STYLES } from "@/lib/tactic-styles";
+import SquadFitPanel from "./SquadFitPanel";
 import { cn } from "@/lib/utils";
 
 // Oyuncu-bazlı talimat segmentleri
@@ -26,6 +28,11 @@ const SEGMENTS = {
   pass_style: { label: "Geçiş", options: [["short", "Kısa"], ["mixed", "Karma"], ["long", "Uzun"]] },
 } as const;
 
+const ADV_SEGMENTS = {
+  width: { label: "Genişlik", options: [["narrow", "Dar"], ["normal", "Normal"], ["wide", "Geniş"]] },
+  defensive_line: { label: "Savunma Hattı", options: [["low", "Alçak"], ["medium", "Orta"], ["high", "Yüksek"]] },
+} as const;
+
 interface DragItem { playerId: string; from: "bench" | number; }
 
 export default function TacticsBoard({ players, initial }: { players: Player[]; initial: Tactics | null }) {
@@ -34,6 +41,8 @@ export default function TacticsBoard({ players, initial }: { players: Player[]; 
   const [pressing, setPressing] = useState(initial?.pressing ?? "medium");
   const [tempo, setTempo] = useState(initial?.tempo ?? "normal");
   const [passStyle, setPassStyle] = useState(initial?.pass_style ?? "mixed");
+  const [style, setStyle] = useState<TacticStyle | null>(initial?.style ?? null);
+  const [advanced, setAdvanced] = useState<TacticAdvanced>(initial?.advanced ?? {});
   const [lineup, setLineup] = useState<Record<string, string>>(initial?.lineup ?? {});
   const [subs, setSubs] = useState<string[]>(initial?.substitutes ?? []);
   const [instructions, setInstructions] = useState<Record<string, PlayerInstruction>>(initial?.player_instructions ?? {});
@@ -53,7 +62,7 @@ export default function TacticsBoard({ players, initial }: { players: Player[]; 
     try {
       const res = await fetch("/api/tactics/save", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ formation, mentality, pressing, tempo, pass_style: passStyle, lineup, substitutes: subs, player_instructions: instructions }),
+        body: JSON.stringify({ formation, mentality, pressing, tempo, pass_style: passStyle, style, advanced, lineup, substitutes: subs, player_instructions: instructions }),
       });
       const ok = res.ok;
       setSaveState(ok ? "saved" : "idle");
@@ -72,7 +81,30 @@ export default function TacticsBoard({ players, initial }: { players: Player[]; 
     const t = setTimeout(() => { saveTactics(); }, 700);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formation, mentality, pressing, tempo, passStyle, lineup, subs, instructions]);
+  }, [formation, mentality, pressing, tempo, passStyle, style, advanced, lineup, subs, instructions]);
+
+  // Stil seç: preset ayarlarını uygula (kullanıcı sonra tek tek değiştirebilir)
+  function applyStyle(s: TacticStyle) {
+    const preset = STYLE_PRESETS[s].settings;
+    setStyle(s);
+    setMentality(preset.mentality);
+    setPressing(preset.pressing);
+    setTempo(preset.tempo);
+    setPassStyle(preset.pass_style);
+    setAdvanced({
+      width: preset.width,
+      defensive_line: preset.defensive_line,
+      time_wasting: preset.time_wasting ?? false,
+      counter_attack: preset.counter_attack ?? false,
+    });
+  }
+
+  // Uyum paneli için mevcut taktik nesnesi
+  const currentTactics = useMemo(() => ({
+    ...(initial ?? {}),
+    formation, mentality, pressing, tempo, pass_style: passStyle,
+    style, advanced, lineup, substitutes: subs, player_instructions: instructions,
+  }) as Tactics, [initial, formation, mentality, pressing, tempo, passStyle, style, advanced, lineup, subs, instructions]);
 
   function setInstr(pid: string, key: keyof PlayerInstruction, val: string) {
     setInstructions((prev) => ({ ...prev, [pid]: { ...INSTR_DEFAULT, ...prev[pid], [key]: val } }));
@@ -163,6 +195,24 @@ export default function TacticsBoard({ players, initial }: { players: Player[]; 
 
   return (
     <>
+    {/* Oyun stili + taktik uyumu (Motor v2) */}
+    <div className="mb-4 space-y-3">
+      <div>
+        <div className="section-label mb-1.5">Oyun Stili</div>
+        <div className="flex flex-wrap gap-1.5">
+          {ALL_STYLES.map((s) => (
+            <button key={s} onClick={() => applyStyle(s)} title={STYLE_PRESETS[s].desc}
+              className={cn("px-3 py-2 rounded-lg text-sm font-semibold border transition-colors",
+                style === s ? "bg-emerald/15 border-emerald text-emerald" : "bg-panel-inset border-border-cm text-text-muted hover:text-text-cm")}>
+              {STYLE_PRESETS[s].label}
+            </button>
+          ))}
+        </div>
+        {style && <p className="text-[11px] text-text-faint mt-1">{STYLE_PRESETS[style].desc} Stil ayarları uygular; altta tek tek değiştirebilirsin.</p>}
+      </div>
+      <SquadFitPanel players={players} tactics={currentTactics} />
+    </div>
+
     <div className="grid grid-cols-[150px_1fr_240px] gap-4">
       {/* Diziliş */}
       <div>
@@ -257,6 +307,25 @@ export default function TacticsBoard({ players, initial }: { players: Player[]; 
               <div className="flex gap-1 bg-panel-inset rounded-lg p-1">
                 {conf.options.map(([val, label]) => (
                   <button key={val} onClick={() => setter(val)}
+                    className={cn("flex-1 py-1.5 rounded text-[11px] font-semibold transition-colors",
+                      value === val ? "bg-emerald text-emerald-ink" : "text-text-muted hover:text-text-cm")}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+
+        {(Object.keys(ADV_SEGMENTS) as (keyof typeof ADV_SEGMENTS)[]).map((key) => {
+          const conf = ADV_SEGMENTS[key];
+          const value = (advanced[key] as string) ?? (key === "width" ? "normal" : "medium");
+          return (
+            <div key={key}>
+              <div className="section-label mb-1.5">{conf.label}</div>
+              <div className="flex gap-1 bg-panel-inset rounded-lg p-1">
+                {conf.options.map(([val, label]) => (
+                  <button key={val} onClick={() => setAdvanced((prev) => ({ ...prev, [key]: val as any }))}
                     className={cn("flex-1 py-1.5 rounded text-[11px] font-semibold transition-colors",
                       value === val ? "bg-emerald text-emerald-ink" : "text-text-muted hover:text-text-cm")}>
                     {label}
