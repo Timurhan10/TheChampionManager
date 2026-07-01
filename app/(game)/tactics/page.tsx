@@ -4,8 +4,11 @@ import { createServiceClient } from "@/lib/supabase/server";
 import PageTopBar from "@/components/PageTopBar";
 import TacticsBoard from "@/components/TacticsBoard";
 import PlayerCompare, { type ComparePlayer } from "@/components/PlayerCompare";
-import { averageRating } from "@/lib/player-generator";
+import { overallRating } from "@/lib/player-generator";
 import type { Player, Tactics } from "@/types/game";
+
+// Kaydetmeden sonra daima taze veri oku (eski taktik görünme hatasını önler).
+export const dynamic = "force-dynamic";
 
 export default async function TacticsPage() {
   const { team } = await getGameContext();
@@ -21,7 +24,7 @@ export default async function TacticsPage() {
   const list = (players ?? []) as Player[];
   const comparePlayers: ComparePlayer[] = list.map((p) => ({
     id: p.id, name: p.name, position: p.position, age: p.age, value_cr: p.value_cr,
-    overall: averageRating(p), potential: p.potential ?? null, attrs: p as any,
+    overall: overallRating(p, p.position), potential: p.potential ?? null, attrs: p as any,
   }));
 
   return (

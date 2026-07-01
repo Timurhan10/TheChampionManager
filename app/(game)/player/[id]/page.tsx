@@ -5,7 +5,7 @@ import PageTopBar from "@/components/PageTopBar";
 import AttributeBar from "@/components/AttributeBar";
 import PlayerActions from "@/components/PlayerActions";
 import BackButton from "@/components/BackButton";
-import { averageRating } from "@/lib/player-generator";
+import { overallRating } from "@/lib/player-generator";
 import {
   CATEGORY_ATTRS,
   CATEGORY_LABELS,
@@ -49,7 +49,7 @@ export default async function PlayerProfilePage({ params }: { params: { id: stri
   const fullyKnown = isOwn || revealedCount >= relevantAttrs.length;
   const anyScouted = isOwn || revealedCount > 0;
 
-  const rating = averageRating(player);
+  const rating = overallRating(player, player.position);
   const posColor = POSITION_COLORS[player.position];
 
   // Hangi kategoriler gösterilir? Kaleci paneli yalnızca GK'da.

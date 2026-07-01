@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { averageRating } from "@/lib/player-generator";
+import { overallRating } from "@/lib/player-generator";
 import { POSITION_COLORS, ratingColor } from "@/lib/attributes";
-import type { Player, Tactics, Position, PlayerInstruction } from "@/types/game";
+import type { Player, Tactics, PlayerInstruction } from "@/types/game";
+import { FORMATIONS, shortName } from "@/lib/formations";
 import { cn } from "@/lib/utils";
 
 // Oyuncu-bazlı talimat segmentleri
@@ -18,60 +19,12 @@ const INSTR_SEGMENTS: { key: keyof PlayerInstruction; label: string; opts: [stri
 ];
 const INSTR_DEFAULT: Required<PlayerInstruction> = { role: "balanced", pressing: "medium", passing: "mixed", run: "hold", risk: "medium", shooting: "normal" };
 
-type Slot = { role: Position; x: number; y: number };
-
-const FORMATIONS: Record<string, Slot[]> = {
-  "4-4-2": [
-    { role: "GK", x: 50, y: 92 },
-    { role: "DF", x: 16, y: 72 }, { role: "DF", x: 38, y: 74 }, { role: "DF", x: 62, y: 74 }, { role: "DF", x: 84, y: 72 },
-    { role: "MF", x: 16, y: 48 }, { role: "MF", x: 38, y: 50 }, { role: "MF", x: 62, y: 50 }, { role: "MF", x: 84, y: 48 },
-    { role: "FW", x: 36, y: 24 }, { role: "FW", x: 64, y: 24 },
-  ],
-  "4-3-3": [
-    { role: "GK", x: 50, y: 92 },
-    { role: "DF", x: 16, y: 72 }, { role: "DF", x: 38, y: 74 }, { role: "DF", x: 62, y: 74 }, { role: "DF", x: 84, y: 72 },
-    { role: "MF", x: 28, y: 50 }, { role: "MF", x: 50, y: 52 }, { role: "MF", x: 72, y: 50 },
-    { role: "FW", x: 22, y: 26 }, { role: "FW", x: 50, y: 22 }, { role: "FW", x: 78, y: 26 },
-  ],
-  "4-2-3-1": [
-    { role: "GK", x: 50, y: 92 },
-    { role: "DF", x: 16, y: 74 }, { role: "DF", x: 38, y: 76 }, { role: "DF", x: 62, y: 76 }, { role: "DF", x: 84, y: 74 },
-    { role: "MF", x: 36, y: 58 }, { role: "MF", x: 64, y: 58 },
-    { role: "MF", x: 24, y: 40 }, { role: "MF", x: 50, y: 38 }, { role: "MF", x: 76, y: 40 },
-    { role: "FW", x: 50, y: 22 },
-  ],
-  "3-5-2": [
-    { role: "GK", x: 50, y: 92 },
-    { role: "DF", x: 28, y: 74 }, { role: "DF", x: 50, y: 76 }, { role: "DF", x: 72, y: 74 },
-    { role: "MF", x: 12, y: 50 }, { role: "MF", x: 32, y: 52 }, { role: "MF", x: 50, y: 54 }, { role: "MF", x: 68, y: 52 }, { role: "MF", x: 88, y: 50 },
-    { role: "FW", x: 38, y: 24 }, { role: "FW", x: 62, y: 24 },
-  ],
-  "5-3-2": [
-    { role: "GK", x: 50, y: 92 },
-    { role: "DF", x: 10, y: 72 }, { role: "DF", x: 30, y: 76 }, { role: "DF", x: 50, y: 78 }, { role: "DF", x: 70, y: 76 }, { role: "DF", x: 90, y: 72 },
-    { role: "MF", x: 28, y: 50 }, { role: "MF", x: 50, y: 52 }, { role: "MF", x: 72, y: 50 },
-    { role: "FW", x: 38, y: 26 }, { role: "FW", x: 62, y: 26 },
-  ],
-  "4-1-4-1": [
-    { role: "GK", x: 50, y: 92 },
-    { role: "DF", x: 16, y: 74 }, { role: "DF", x: 38, y: 76 }, { role: "DF", x: 62, y: 76 }, { role: "DF", x: 84, y: 74 },
-    { role: "MF", x: 50, y: 60 },
-    { role: "MF", x: 16, y: 44 }, { role: "MF", x: 38, y: 44 }, { role: "MF", x: 62, y: 44 }, { role: "MF", x: 84, y: 44 },
-    { role: "FW", x: 50, y: 24 },
-  ],
-};
-
 const SEGMENTS = {
   mentality: { label: "Mentalite", options: [["defensive", "Savunmacı"], ["balanced", "Dengeli"], ["attacking", "Hücumcu"]] },
   pressing: { label: "Pressing", options: [["low", "Düşük"], ["medium", "Orta"], ["high", "Yüksek"]] },
   tempo: { label: "Tempo", options: [["slow", "Yavaş"], ["normal", "Normal"], ["fast", "Hızlı"]] },
   pass_style: { label: "Geçiş", options: [["short", "Kısa"], ["mixed", "Karma"], ["long", "Uzun"]] },
 } as const;
-
-function shortName(name: string): string {
-  const parts = name.split(" ");
-  return parts.length > 1 ? `${parts[0][0]}. ${parts[parts.length - 1]}` : name;
-}
 
 interface DragItem { playerId: string; from: "bench" | number; }
 
@@ -92,6 +45,7 @@ export default function TacticsBoard({ players, initial }: { players: Player[]; 
   const byId = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
   const usedIds = useMemo(() => new Set(Object.values(lineup).filter(Boolean)), [lineup]);
   const dragRef = useRef<DragItem | null>(null);
+  const dragBadgeRef = useRef<HTMLElement | null>(null);
 
   // Taktiği kaydet (hem otomatik hem manuel buton kullanır)
   async function saveTactics(): Promise<boolean> {
@@ -143,7 +97,29 @@ export default function TacticsBoard({ players, initial }: { players: Player[]; 
   }
 
   // --- Drag & drop ---
-  function onDragStart(item: DragItem) { dragRef.current = item; }
+  // Sürükleme sırasında tarayıcının "link" hayaleti yerine yuvarlak numara rozeti göster.
+  function onDragStart(e: React.DragEvent, item: DragItem, player?: Player) {
+    dragRef.current = item;
+    if (player && e.dataTransfer) {
+      const color = POSITION_COLORS[player.position]?.color ?? "#10B981";
+      const label = player.shirt_number ?? overallRating(player, player.position);
+      const badge = document.createElement("div");
+      badge.textContent = String(label);
+      badge.style.cssText =
+        "position:fixed;top:-140px;left:-140px;width:38px;height:38px;border-radius:9999px;" +
+        "display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;" +
+        "color:#F1F5F9;background:#0C1524;border:2px solid " + color + ";" +
+        "box-shadow:0 2px 10px rgba(0,0,0,.5);z-index:9999;font-family:sans-serif;";
+      document.body.appendChild(badge);
+      dragBadgeRef.current = badge;
+      e.dataTransfer.setDragImage(badge, 19, 19);
+      e.dataTransfer.effectAllowed = "move";
+    }
+  }
+  function onDragEndCleanup() {
+    dragBadgeRef.current?.remove();
+    dragBadgeRef.current = null;
+  }
   function onDropSlot(slotIdx: number) {
     const item = dragRef.current;
     if (!item) return;
@@ -171,7 +147,7 @@ export default function TacticsBoard({ players, initial }: { players: Player[]; 
     // Pozisyona uygun, en yüksek rating'li 11 oyuncuyu otomatik yerleştir
     const next: Record<string, string> = {};
     const used = new Set<string>();
-    const pool = [...players].sort((a, b) => averageRating(b) - averageRating(a));
+    const pool = [...players].sort((a, b) => overallRating(b, b.position) - overallRating(a, a.position));
     slots.forEach((slot, i) => {
       let pick = pool.find((p) => !used.has(p.id) && p.position === slot.role);
       if (!pick) pick = pool.find((p) => !used.has(p.id));
@@ -241,15 +217,16 @@ export default function TacticsBoard({ players, initial }: { players: Player[]; 
                 onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.stopPropagation(); onDropSlot(i); }}>
                 <div
                   draggable={!!player}
-                  onDragStart={() => player && onDragStart({ playerId: player.id, from: i })}
+                  onDragStart={(e) => player && onDragStart(e, { playerId: player.id, from: i }, player)}
+                  onDragEnd={onDragEndCleanup}
                   className="w-9 h-9 rounded-full flex items-center justify-center text-[10px] font-bold border-2 cursor-grab active:cursor-grabbing"
                   style={{ background: "#0C1524", borderColor: color.color, color: player ? "#F1F5F9" : color.color }}
-                  title={player ? `${player.name} · ${averageRating(player)}` : slot.role}>
-                  {player ? (player.shirt_number ?? averageRating(player)) : slot.role}
+                  title={player ? `${player.name} · ${overallRating(player, player.position)}` : slot.role}>
+                  {player ? (player.shirt_number ?? overallRating(player, player.position)) : slot.role}
                 </div>
                 {player ? (
                   <div className="flex items-center gap-0.5">
-                    <Link href={`/player/${player.id}`} className="text-[9px] text-white/90 bg-black/40 rounded px-1 hover:text-emerald max-w-[64px] truncate">
+                    <Link href={`/player/${player.id}`} draggable={false} className="text-[9px] text-white/90 bg-black/40 rounded px-1 hover:text-emerald max-w-[64px] truncate">
                       {shortName(player.name)}
                     </Link>
                     <button onClick={() => setInstrFor(player.id)} title="Talimatlar"
@@ -294,13 +271,13 @@ export default function TacticsBoard({ players, initial }: { players: Player[]; 
           <div className="section-label mb-1.5">Yedek Kulübesi ({benchPlayers.length})</div>
           <div className="space-y-1 max-h-[240px] overflow-y-auto pr-1">
             {benchPlayers.map((p) => (
-              <div key={p.id} draggable onDragStart={() => onDragStart({ playerId: p.id, from: "bench" })}
+              <div key={p.id} draggable onDragStart={(e) => onDragStart(e, { playerId: p.id, from: "bench" }, p)} onDragEnd={onDragEndCleanup}
                 className="w-full flex items-center justify-between px-2 py-1.5 rounded text-[11px] bg-panel-inset border border-transparent hover:border-border-cm cursor-grab active:cursor-grabbing">
                 <span className="flex items-center gap-1.5 truncate">
                   <span className="w-4 h-4 rounded text-[8px] font-bold flex items-center justify-center" style={{ background: POSITION_COLORS[p.position].bg, color: POSITION_COLORS[p.position].color }}>{p.position}</span>
-                  <Link href={`/player/${p.id}`} className="truncate hover:text-emerald" onClick={(e) => e.stopPropagation()}>{shortName(p.name)}</Link>
+                  <Link href={`/player/${p.id}`} draggable={false} className="truncate hover:text-emerald" onClick={(e) => e.stopPropagation()}>{shortName(p.name)}</Link>
                 </span>
-                <span className="font-display font-bold" style={{ color: ratingColor(averageRating(p)) }}>{averageRating(p)}</span>
+                <span className="font-display font-bold" style={{ color: ratingColor(overallRating(p, p.position)) }}>{overallRating(p, p.position)}</span>
               </div>
             ))}
           </div>

@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import LiveMatchCanvas from "./LiveMatchCanvas";
+import type { MatchEvent } from "@/types/game";
 
 // Maç reytingi (0-10) renk eşiği
 function matchRatingColor(v: number): string {
@@ -15,6 +17,7 @@ interface FriendlyResult {
   away: { name: string; score: number };
   motm: { playerId: string; name: string; team: "home" | "away" } | null;
   ratings: { playerId: string; name: string; rating: number }[];
+  events: MatchEvent[];
 }
 
 const DIFFS = [
@@ -75,23 +78,25 @@ export default function FriendlyMatch({ canPlay = true }: { canPlay?: boolean })
       </div>
 
       {result && (
-        <div className="bg-panel border border-border-cm rounded-card overflow-hidden">
-          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 px-6 py-5 border-b border-border-cm">
+        <div className="space-y-4">
+          {/* Takım başlığı */}
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
             <div className="text-right font-display font-bold text-lg truncate">{result.home.name}</div>
-            <div className="font-display font-extrabold text-3xl tabular-nums px-3">
-              {result.home.score} <span className="text-text-faint">-</span> {result.away.score}
-            </div>
+            <div className="text-xs text-text-faint">vs</div>
             <div className="text-left font-display font-bold text-lg text-text-muted truncate">{result.away.name}</div>
           </div>
 
+          {/* Canlı animasyonlu maç (10 dk = 5+5) */}
+          <LiveMatchCanvas events={result.events} homeColor={0x3b82f6} awayColor={0xef4444} />
+
           {result.motm && (
-            <div className="px-6 py-2.5 border-b border-border-soft text-center text-xs">
+            <div className="bg-panel border border-border-cm rounded-card px-6 py-2.5 text-center text-xs">
               <span className="text-text-faint">Maçın Adamı: </span>
               <span className="font-semibold text-amber">{result.motm.name}</span>
             </div>
           )}
 
-          <div className="p-4">
+          <div className="bg-panel border border-border-cm rounded-card p-4">
             <div className="section-label mb-2">Oyuncu Reytingleri (kendi takımın)</div>
             <div className="grid grid-cols-2 gap-x-6 gap-y-1">
               {result.ratings.map((r) => (

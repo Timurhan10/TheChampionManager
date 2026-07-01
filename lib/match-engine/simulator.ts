@@ -1,7 +1,7 @@
 // The Champion Manager — Maç simülasyon motoru
 // İki takımın kadro + taktiğinden skor, olaylar ve istatistik üretir.
 
-import { averageRating } from "@/lib/player-generator";
+import { overallRating } from "@/lib/player-generator";
 import type { AttributeKey } from "@/lib/attributes";
 import type { Player, Tactics, MatchEvent, Position } from "@/types/game";
 
@@ -52,10 +52,11 @@ function mean(p: Player, keys: AttributeKey[]): number {
   return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 10;
 }
 
-const OFF_ATTRS: AttributeKey[] = ["shooting", "long_shots", "off_the_ball", "dribbling", "technique", "pace", "composure", "first_touch"];
-const DEF_ATTRS: AttributeKey[] = ["tackling", "positioning", "strength", "anticipation", "concentration", "heading"];
-const GK_ATTRS: AttributeKey[] = ["reflexes", "handling", "one_on_ones", "command_of_area"];
-const MID_ATTRS: AttributeKey[] = ["passing", "vision", "teamwork", "work_rate", "stamina"];
+// FM'e göre pozisyon-rol özellik havuzları (dengeli).
+const OFF_ATTRS: AttributeKey[] = ["shooting", "long_shots", "off_the_ball", "dribbling", "technique", "pace", "composure", "first_touch", "anticipation"];
+const DEF_ATTRS: AttributeKey[] = ["tackling", "positioning", "strength", "anticipation", "concentration", "heading", "jumping"];
+const GK_ATTRS: AttributeKey[] = ["reflexes", "handling", "one_on_ones", "command_of_area", "positioning"];
+const MID_ATTRS: AttributeKey[] = ["passing", "vision", "teamwork", "work_rate", "stamina", "technique", "decisions"];
 
 // Pozisyon ağırlıkları
 const ATT_W: Record<Position, number> = { FW: 1.0, MF: 0.55, DF: 0.15, GK: 0 };
@@ -75,7 +76,7 @@ function startingEleven(team: EngineTeam): Player[] {
     }
     const rest = team.players
       .filter((p) => !chosen.has(p.id))
-      .sort((a, b) => averageRating(b) - averageRating(a));
+      .sort((a, b) => overallRating(b, b.position) - overallRating(a, a.position));
     for (const p of rest) {
       if (eleven.length >= 11) break;
       eleven.push(p);
@@ -263,7 +264,7 @@ export function simulateMatch(home: EngineTeam, away: EngineTeam): SimResult {
     motm = { playerId: top.playerId!, name: top.playerName!, team: top.team };
   } else {
     const winnerEleven = homeScore >= awayScore ? hEleven : aEleven;
-    const best = [...winnerEleven].sort((a, b) => averageRating(b) - averageRating(a))[0];
+    const best = [...winnerEleven].sort((a, b) => overallRating(b, b.position) - overallRating(a, a.position))[0];
     motm = { playerId: best.id, name: best.name, team: homeScore >= awayScore ? "home" : "away" };
   }
 

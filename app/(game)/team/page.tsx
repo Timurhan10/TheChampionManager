@@ -7,7 +7,7 @@ import TeamResetButton from "@/components/TeamResetButton";
 import PlayerNameEdit from "@/components/PlayerNameEdit";
 import PlayerCompare, { type ComparePlayer } from "@/components/PlayerCompare";
 import { getTeamEditability } from "@/lib/team-guard";
-import { averageRating } from "@/lib/player-generator";
+import { overallRating } from "@/lib/player-generator";
 import { POSITION_COLORS, POSITION_LABELS, ratingColor } from "@/lib/attributes";
 import { formatCR, formatNumber } from "@/lib/utils";
 import type { Player, Position } from "@/types/game";
@@ -35,7 +35,7 @@ export default async function TeamPage() {
   // Karşılaştırma için kendi oyuncular (tüm özellikler bilinir)
   const comparePlayers: ComparePlayer[] = list.map((p) => ({
     id: p.id, name: p.name, position: p.position, age: p.age, value_cr: p.value_cr,
-    overall: averageRating(p), potential: p.potential ?? null, attrs: p as any,
+    overall: overallRating(p, p.position), potential: p.potential ?? null, attrs: p as any,
   }));
 
   return (
@@ -76,7 +76,7 @@ export default async function TeamPage() {
                   <span>İsim</span><span className="text-center">Yaş</span><span className="text-center">Rating</span><span>Potansiyel</span><span className="text-right">Değer</span><span></span>
                 </div>
                 {grouped[pos].map((p) => {
-                  const rating = averageRating(p);
+                  const rating = overallRating(p, p.position);
                   return (
                     <div key={p.id} className="grid grid-cols-[1.7fr_44px_56px_84px_88px_72px] gap-2 px-3.5 py-1.5 items-center border-b border-border-soft last:border-0 hover:bg-panel-inset/50">
                       <div className="flex items-center gap-2 min-w-0">

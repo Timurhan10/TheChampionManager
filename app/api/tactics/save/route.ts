@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 const FORMATIONS = ["4-4-2", "4-3-3", "4-2-3-1", "3-5-2", "5-3-2", "4-1-4-1"];
@@ -32,6 +33,11 @@ export async function POST(req: Request) {
   // team_id unique olduğundan upsert
   const { error } = await svc.from("tactics").upsert(update, { onConflict: "team_id" });
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+  // Server component önbelleğini tazele — aksi halde sayfa yenilenince ESKİ taktik görünür.
+  revalidatePath("/tactics");
+  revalidatePath("/first-eleven");
+  revalidatePath("/team");
 
   return NextResponse.json({ ok: true });
 }
