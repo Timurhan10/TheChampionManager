@@ -3,8 +3,8 @@
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 
-// Transfer pazarı açıldığında 12 saatlik yenilemeyi tembel tetikler.
-// Sunucu 12s geçmediyse iş yapmaz; yeni oyuncu eklendiyse sayfayı tazeler.
+// Transfer pazarı açıldığında 30 dakikalık yenilemeyi tembel tetikler.
+// Sunucu 30 dk geçmediyse iş yapmaz; yeni oyuncu eklendiyse sayfayı tazeler.
 export default function MarketAutoRefresh() {
   const router = useRouter();
   const ran = useRef(false);

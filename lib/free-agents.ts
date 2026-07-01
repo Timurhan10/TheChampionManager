@@ -45,10 +45,10 @@ export async function topUpFreeAgents(svc: SupabaseClient, target = FREE_AGENT_T
   return need;
 }
 
-const REFRESH_INTERVAL_MS = 10 * 60 * 1000; // 10 dakika — pazar sık tazelensin
+const REFRESH_INTERVAL_MS = 30 * 60 * 1000; // 30 dakika — pazar bu aralıkla tazelenir
 const ROTATE_BATCH = 10;
 
-// Pazarı 12 saatte bir rotasyona sokar: en eski "boşta" serbest ajanları silip
+// Pazarı 30 dakikada bir rotasyona sokar: en eski "boşta" serbest ajanları silip
 // yerine yenilerini ekler. Havuz ~target'ta sınırlı kalır, liste sürekli değişir.
 // Sadece takımsız + satışta olmayan + scout raporu olmayan + bekleyen teklifi
 // olmayan serbest ajanlara dokunur; kullanıcı/AI oyuncuları asla silinmez.
@@ -56,7 +56,7 @@ export async function rotateFreeAgents(
   svc: SupabaseClient,
   target = FREE_AGENT_TARGET,
 ): Promise<{ skipped: boolean; removed: number; added: number }> {
-  // 12s gate: en yeni serbest ajan yakın zamanda eklendiyse iş yapma.
+  // 30 dk gate: en yeni serbest ajan yakın zamanda eklendiyse iş yapma.
   const { data: newest } = await svc
     .from("players")
     .select("created_at")

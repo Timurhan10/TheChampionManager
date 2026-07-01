@@ -7,6 +7,9 @@ import PlayerCompare, { type ComparePlayer } from "@/components/PlayerCompare";
 import { averageRating } from "@/lib/player-generator";
 import type { Player, Tactics } from "@/types/game";
 
+// Kaydetmeden sonra daima taze veri oku (eski taktik görünme hatasını önler).
+export const dynamic = "force-dynamic";
+
 export default async function TacticsPage() {
   const { team } = await getGameContext();
   if (!team) redirect("/onboarding");

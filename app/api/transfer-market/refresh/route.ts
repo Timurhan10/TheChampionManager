@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { rotateFreeAgents } from "@/lib/free-agents";
 
-// Transfer pazarını 12 saatte bir tembel (lazy) yeniler. Pazar sayfası ziyaret
-// edildiğinde tetiklenir; 12s geçmediyse iş yapmaz (gate). Günlük cron da çağırır.
+// Transfer pazarını 30 dakikada bir tembel (lazy) yeniler. Pazar sayfası ziyaret
+// edildiğinde tetiklenir; 30 dk geçmediyse iş yapmaz (gate). Günlük cron da çağırır.
 export async function GET(req: Request) {
   const sb = createClient();
   const { data: { user } } = await sb.auth.getUser();

@@ -92,6 +92,7 @@ export default function TacticsBoard({ players, initial }: { players: Player[]; 
   const byId = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
   const usedIds = useMemo(() => new Set(Object.values(lineup).filter(Boolean)), [lineup]);
   const dragRef = useRef<DragItem | null>(null);
+  const dragBadgeRef = useRef<HTMLElement | null>(null);
 
   // Taktiği kaydet (hem otomatik hem manuel buton kullanır)
   async function saveTactics(): Promise<boolean> {
@@ -143,7 +144,29 @@ export default function TacticsBoard({ players, initial }: { players: Player[]; 
   }
 
   // --- Drag & drop ---
-  function onDragStart(item: DragItem) { dragRef.current = item; }
+  // Sürükleme sırasında tarayıcının "link" hayaleti yerine yuvarlak numara rozeti göster.
+  function onDragStart(e: React.DragEvent, item: DragItem, player?: Player) {
+    dragRef.current = item;
+    if (player && e.dataTransfer) {
+      const color = POSITION_COLORS[player.position]?.color ?? "#10B981";
+      const label = player.shirt_number ?? averageRating(player);
+      const badge = document.createElement("div");
+      badge.textContent = String(label);
+      badge.style.cssText =
+        "position:fixed;top:-140px;left:-140px;width:38px;height:38px;border-radius:9999px;" +
+        "display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;" +
+        "color:#F1F5F9;background:#0C1524;border:2px solid " + color + ";" +
+        "box-shadow:0 2px 10px rgba(0,0,0,.5);z-index:9999;font-family:sans-serif;";
+      document.body.appendChild(badge);
+      dragBadgeRef.current = badge;
+      e.dataTransfer.setDragImage(badge, 19, 19);
+      e.dataTransfer.effectAllowed = "move";
+    }
+  }
+  function onDragEndCleanup() {
+    dragBadgeRef.current?.remove();
+    dragBadgeRef.current = null;
+  }
   function onDropSlot(slotIdx: number) {
     const item = dragRef.current;
     if (!item) return;
@@ -241,7 +264,8 @@ export default function TacticsBoard({ players, initial }: { players: Player[]; 
                 onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.stopPropagation(); onDropSlot(i); }}>
                 <div
                   draggable={!!player}
-                  onDragStart={() => player && onDragStart({ playerId: player.id, from: i })}
+                  onDragStart={(e) => player && onDragStart(e, { playerId: player.id, from: i }, player)}
+                  onDragEnd={onDragEndCleanup}
                   className="w-9 h-9 rounded-full flex items-center justify-center text-[10px] font-bold border-2 cursor-grab active:cursor-grabbing"
                   style={{ background: "#0C1524", borderColor: color.color, color: player ? "#F1F5F9" : color.color }}
                   title={player ? `${player.name} · ${averageRating(player)}` : slot.role}>
@@ -249,7 +273,7 @@ export default function TacticsBoard({ players, initial }: { players: Player[]; 
                 </div>
                 {player ? (
                   <div className="flex items-center gap-0.5">
-                    <Link href={`/player/${player.id}`} className="text-[9px] text-white/90 bg-black/40 rounded px-1 hover:text-emerald max-w-[64px] truncate">
+                    <Link href={`/player/${player.id}`} draggable={false} className="text-[9px] text-white/90 bg-black/40 rounded px-1 hover:text-emerald max-w-[64px] truncate">
                       {shortName(player.name)}
                     </Link>
                     <button onClick={() => setInstrFor(player.id)} title="Talimatlar"
@@ -294,11 +318,11 @@ export default function TacticsBoard({ players, initial }: { players: Player[]; 
           <div className="section-label mb-1.5">Yedek Kulübesi ({benchPlayers.length})</div>
           <div className="space-y-1 max-h-[240px] overflow-y-auto pr-1">
             {benchPlayers.map((p) => (
-              <div key={p.id} draggable onDragStart={() => onDragStart({ playerId: p.id, from: "bench" })}
+              <div key={p.id} draggable onDragStart={(e) => onDragStart(e, { playerId: p.id, from: "bench" }, p)} onDragEnd={onDragEndCleanup}
                 className="w-full flex items-center justify-between px-2 py-1.5 rounded text-[11px] bg-panel-inset border border-transparent hover:border-border-cm cursor-grab active:cursor-grabbing">
                 <span className="flex items-center gap-1.5 truncate">
                   <span className="w-4 h-4 rounded text-[8px] font-bold flex items-center justify-center" style={{ background: POSITION_COLORS[p.position].bg, color: POSITION_COLORS[p.position].color }}>{p.position}</span>
-                  <Link href={`/player/${p.id}`} className="truncate hover:text-emerald" onClick={(e) => e.stopPropagation()}>{shortName(p.name)}</Link>
+                  <Link href={`/player/${p.id}`} draggable={false} className="truncate hover:text-emerald" onClick={(e) => e.stopPropagation()}>{shortName(p.name)}</Link>
                 </span>
                 <span className="font-display font-bold" style={{ color: ratingColor(averageRating(p)) }}>{averageRating(p)}</span>
               </div>

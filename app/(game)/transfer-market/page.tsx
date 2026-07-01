@@ -19,11 +19,12 @@ export default async function TransferMarketPage() {
 
   const supabase = createServiceClient();
 
-  // Satıştaki oyuncular (başkalarının) + serbest ajanlar
-  const [{ data: forSaleRows }, { data: freeAgents }, { data: myListings }] = await Promise.all([
+  // Satıştaki oyuncular (başkalarının) + serbest ajanlar + kendi kadrom
+  const [{ data: forSaleRows }, { data: freeAgents }, { data: myListings }, { data: mySquad }] = await Promise.all([
     supabase.from("players").select("*").eq("for_sale", true).neq("team_id", team.id).limit(60),
     supabase.from("players").select("*").is("team_id", null).limit(40),
     supabase.from("players").select("*").eq("team_id", team.id).eq("for_sale", true),
+    supabase.from("players").select("*").eq("team_id", team.id),
   ]);
 
   const listed = [...(forSaleRows ?? []), ...(freeAgents ?? [])] as Player[];
@@ -38,7 +39,7 @@ export default async function TransferMarketPage() {
   // Scout durumu
   const revealed = await getRevealedKeys(supabase, team.id, listed.map((p) => p.id));
 
-  // Karşılaştırma (özet — gizli özellik sızdırmaz; rating yalnız scout edilmişse)
+  // Pazar tarafı (özet — gizli özellik sızdırmaz; rating yalnız scout edilmişse)
   const marketCompare: ComparePlayer[] = listed.map((p) => {
     const scouted = (revealed.get(p.id)?.size ?? 0) > 0;
     return {
@@ -48,6 +49,15 @@ export default async function TransferMarketPage() {
       potential: null, attrs: null,
     };
   });
+
+  // Kendi kadrom (tam özellikler görünür)
+  const ownCompare: ComparePlayer[] = (mySquad as Player[] ?? []).map((p) => ({
+    id: p.id, name: p.name, position: p.position, age: p.age,
+    value_cr: p.value_cr,
+    overall: averageRating(p),
+    potential: p.potential,
+    attrs: p as unknown as Record<string, number | null>,
+  }));
 
   // Gelen teklifler (kendi oyuncularıma)
   const { data: offerRows } = await supabase
@@ -114,13 +124,13 @@ export default async function TransferMarketPage() {
               })}
             </div>
 
-            {marketCompare.length >= 2 && (
+            {marketCompare.length >= 1 && ownCompare.length >= 1 && (
               <div className="mt-6 pt-5 border-t border-border-cm">
                 <h3 className="font-display font-extrabold text-lg mb-1 flex items-center gap-2">
-                  <span className="text-emerald">⇄</span> Oyuncu Karşılaştırma
+                  <span className="text-emerald">⇄</span> Pazar ↔ Senin Oyuncun
                 </h3>
-                <p className="text-xs text-text-muted mb-3">Almadan önce iki oyuncuyu yan yana karşılaştır.</p>
-                <PlayerCompare players={marketCompare} title="Alım öncesi karşılaştırma" />
+                <p className="text-xs text-text-muted mb-3">Solda pazardaki oyuncu, sağda kendi oyuncun — almadan önce karşılaştır.</p>
+                <PlayerCompare leftPlayers={marketCompare} rightPlayers={ownCompare} title="Pazar oyuncusu ↔ Senin oyuncun" />
               </div>
             )}
           </div>

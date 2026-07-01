@@ -17,12 +17,26 @@ export interface ComparePlayer {
 
 // Kendi oyuncularını (veya pazardaki oyuncuları) yan yana karşılaştırır.
 // attrs varsa detaylı özellik kıyaslaması, yoksa yalnızca özet gösterilir.
-export default function PlayerCompare({ players, title = "Oyuncu Karşılaştırma" }: { players: ComparePlayer[]; title?: string }) {
-  const [aId, setAId] = useState(players[0]?.id ?? "");
-  const [bId, setBId] = useState(players[1]?.id ?? players[0]?.id ?? "");
+// leftPlayers/rightPlayers verilirse sol ve sağ seçici farklı havuzlardan seçer
+// (ör. sol: pazar oyuncuları, sağ: kendi oyuncuların). Verilmezse ikisi de `players`.
+export default function PlayerCompare({
+  players, leftPlayers, rightPlayers, title = "Oyuncu Karşılaştırma",
+}: {
+  players?: ComparePlayer[];
+  leftPlayers?: ComparePlayer[];
+  rightPlayers?: ComparePlayer[];
+  title?: string;
+}) {
+  const left = leftPlayers ?? players ?? [];
+  const right = rightPlayers ?? players ?? [];
+  const split = !!(leftPlayers || rightPlayers);
 
-  const a = players.find((p) => p.id === aId) ?? null;
-  const b = players.find((p) => p.id === bId) ?? null;
+  const [aId, setAId] = useState(left[0]?.id ?? "");
+  const [bId, setBId] = useState((split ? right[0]?.id : right[1]?.id ?? right[0]?.id) ?? "");
+  const [showAttrs, setShowAttrs] = useState(false);
+
+  const a = left.find((p) => p.id === aId) ?? null;
+  const b = right.find((p) => p.id === bId) ?? null;
 
   const categories: AttributeCategory[] = useMemo(() => {
     const base: AttributeCategory[] = ["technical", "mental", "physical"];
@@ -32,7 +46,7 @@ export default function PlayerCompare({ players, title = "Oyuncu Karşılaştır
 
   const bothAttrs = !!(a?.attrs && b?.attrs);
 
-  if (players.length < 2) {
+  if (left.length === 0 || right.length === 0) {
     return (
       <div className="bg-panel border border-border-cm rounded-card p-4 text-center text-sm text-text-muted">
         Karşılaştırma için en az iki oyuncu gerekir.
@@ -40,11 +54,11 @@ export default function PlayerCompare({ players, title = "Oyuncu Karşılaştır
     );
   }
 
-  const selector = (val: string, set: (v: string) => void, other: string) => (
+  const selector = (val: string, set: (v: string) => void, other: string, pool: ComparePlayer[]) => (
     <select value={val} onChange={(e) => set(e.target.value)}
       className="w-full bg-panel-inset border border-border-cm rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-emerald">
-      {players.map((p) => (
-        <option key={p.id} value={p.id} disabled={p.id === other}>
+      {pool.map((p) => (
+        <option key={p.id} value={p.id} disabled={!split && p.id === other}>
           {p.position} · {p.name}{p.overall != null ? ` (${p.overall})` : ""}
         </option>
       ))}
@@ -64,13 +78,19 @@ export default function PlayerCompare({ players, title = "Oyuncu Karşılaştır
     <div className="bg-panel border border-border-cm rounded-card overflow-hidden">
       <div className="px-4 py-2.5 border-b border-border-cm flex items-center justify-between">
         <span className="section-label">{title}</span>
+        {bothAttrs && a && b && (
+          <button onClick={() => setShowAttrs((s) => !s)}
+            className="text-xs font-semibold px-2.5 py-1 rounded border border-border-cm text-text-2 hover:bg-panel-inset hover:text-emerald">
+            {showAttrs ? "Özellikleri Gizle" : "Özellikleri Göster"}
+          </button>
+        )}
       </div>
 
       {/* Seçiciler + başlık */}
       <div className="grid grid-cols-[1fr_70px_1fr] gap-2 items-center px-4 py-3 border-b border-border-soft">
-        {selector(aId, setAId, bId)}
+        {selector(aId, setAId, bId, left)}
         <span className="text-center text-[11px] text-text-faint font-bold">VS</span>
-        {selector(bId, setBId, aId)}
+        {selector(bId, setBId, aId, right)}
       </div>
 
       {a && b && (
@@ -87,18 +107,24 @@ export default function PlayerCompare({ players, title = "Oyuncu Karşılaştır
             a={<Stars potential={a.potential} align="start" />}
             b={<Stars potential={b.potential} align="end" />} />
 
-          {/* Detaylı özellikler (her ikisi de biliniyorsa) */}
+          {/* Detaylı özellikler — yalnızca her ikisi biliniyorsa ve buton açıksa */}
           {bothAttrs ? (
-            categories.map((cat) => (
-              <div key={cat} className="mt-2">
-                <div className="text-[10px] font-bold uppercase tracking-wide text-emerald/80 py-1.5 border-b border-border-soft">{CATEGORY_LABELS[cat]}</div>
-                {CATEGORY_ATTRS[cat].map((key) => (
-                  <Row key={key} label={ATTR_LABELS[key]}
-                    a={cmpCell((a.attrs as any)[key] ?? null, (b.attrs as any)[key] ?? null, "a")}
-                    b={cmpCell((a.attrs as any)[key] ?? null, (b.attrs as any)[key] ?? null, "b")} />
-                ))}
-              </div>
-            ))
+            showAttrs ? (
+              categories.map((cat) => (
+                <div key={cat} className="mt-2">
+                  <div className="text-[10px] font-bold uppercase tracking-wide text-emerald/80 py-1.5 border-b border-border-soft">{CATEGORY_LABELS[cat]}</div>
+                  {CATEGORY_ATTRS[cat].map((key) => (
+                    <Row key={key} label={ATTR_LABELS[key]}
+                      a={cmpCell((a.attrs as any)[key] ?? null, (b.attrs as any)[key] ?? null, "a")}
+                      b={cmpCell((a.attrs as any)[key] ?? null, (b.attrs as any)[key] ?? null, "b")} />
+                  ))}
+                </div>
+              ))
+            ) : (
+              <p className="text-[11px] text-text-faint text-center py-3">
+                Detaylı özellikler için üstteki <b>“Özellikleri Göster”</b> butonuna bas.
+              </p>
+            )
           ) : (
             <p className="text-[11px] text-text-faint text-center py-3">
               Detaylı özellik kıyaslaması yalnızca kendi oyuncuların (veya scout edilmiş oyuncular) için gösterilir.

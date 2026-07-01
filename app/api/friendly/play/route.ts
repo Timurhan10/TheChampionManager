@@ -83,5 +83,6 @@ export async function POST(req: Request) {
     motm: result.manOfTheMatch,
     stats: result.stats,
     ratings: homeRatings,
+    events: result.events, // canlı animasyon için olay zaman çizelgesi
   });
 }
