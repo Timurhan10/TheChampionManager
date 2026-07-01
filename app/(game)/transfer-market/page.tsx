@@ -4,14 +4,14 @@ import { getGameContext, getRevealedKeys } from "@/lib/data";
 import { createServiceClient } from "@/lib/supabase/server";
 import PageTopBar from "@/components/PageTopBar";
 import IncomingOffers, { type Offer } from "@/components/IncomingOffers";
-import MarketSeedButton from "@/components/MarketSeedButton";
 import MarketAutoRefresh from "@/components/MarketAutoRefresh";
-import ProcessSalesButton from "@/components/ProcessSalesButton";
 import PlayerCompare, { type ComparePlayer } from "@/components/PlayerCompare";
 import { overallRating } from "@/lib/player-generator";
 import { POSITION_COLORS, ratingColor } from "@/lib/attributes";
 import { formatNumber, teamBadge } from "@/lib/utils";
 import type { Player } from "@/types/game";
+
+export const dynamic = "force-dynamic";
 
 export default async function TransferMarketPage() {
   const { team } = await getGameContext();
@@ -20,10 +20,9 @@ export default async function TransferMarketPage() {
   const supabase = createServiceClient();
 
   // Satıştaki oyuncular (başkalarının) + serbest ajanlar + kendi kadrom
-  const [{ data: forSaleRows }, { data: freeAgents }, { data: myListings }, { data: mySquad }] = await Promise.all([
+  const [{ data: forSaleRows }, { data: freeAgents }, { data: mySquad }] = await Promise.all([
     supabase.from("players").select("*").eq("for_sale", true).neq("team_id", team.id).limit(60),
     supabase.from("players").select("*").is("team_id", null).order("created_at", { ascending: false }).limit(40),
-    supabase.from("players").select("*").eq("team_id", team.id).eq("for_sale", true),
     supabase.from("players").select("*").eq("team_id", team.id),
   ]);
 
@@ -88,12 +87,11 @@ export default async function TransferMarketPage() {
       <MarketAutoRefresh />
       <PageTopBar title="Transfer Pazarı" subtitle={`${listed.length} oyuncu listede`} />
       <div className="flex-1 overflow-y-auto p-[22px]">
-        <div className="grid grid-cols-[1fr_300px] gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5">
           {/* Liste */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <span className="section-label">Satıştaki Oyuncular & Serbest Ajanlar</span>
-              <MarketSeedButton />
             </div>
             <div className="bg-panel border border-border-cm rounded-card overflow-hidden">
               <div className="grid grid-cols-[1.6fr_48px_1fr_90px_100px_84px] gap-2 px-4 py-2.5 border-b border-border-cm text-[10px] font-bold text-text-faint uppercase">
@@ -138,29 +136,13 @@ export default async function TransferMarketPage() {
           {/* Sağ panel */}
           <div className="space-y-5">
             <div>
-              <div className="section-label mb-2">Satışa Çıkardıklarım ({myListings?.length ?? 0})</div>
-              <div className="bg-panel border border-border-cm rounded-card p-3 space-y-2">
-                {(myListings ?? []).length === 0 && <div className="text-text-muted text-sm py-2 text-center">Listede oyuncun yok.</div>}
-                {(myListings as Player[] ?? []).map((p) => (
-                  <Link key={p.id} href={`/player/${p.id}`} className="flex justify-between items-center bg-panel-inset rounded-lg px-3 py-2 hover:border-emerald border border-transparent">
-                    <span className="text-sm flex items-center gap-2"><span className="w-5 h-5 rounded text-[9px] font-bold flex items-center justify-center" style={{ background: POSITION_COLORS[p.position].bg, color: POSITION_COLORS[p.position].color }}>{p.position}</span>{p.name}</span>
-                    <span className="text-xs text-amber">{formatNumber(p.asking_price ?? 0)} CR</span>
-                  </Link>
-                ))}
-                {(myListings ?? []).length > 0 && (
-                  <>
-                    <p className="text-[11px] text-text-faint text-center pt-1">Satışa çıkan oyuncular en geç 3 günde otomatik satılır.</p>
-                    <ProcessSalesButton />
-                  </>
-                )}
-              </div>
-            </div>
-
-            <div>
               <div className="section-label mb-2">Gelen Teklifler ({offers.length})</div>
               <div className="bg-panel border border-border-cm rounded-card p-3">
                 <IncomingOffers offers={offers} />
               </div>
+              <p className="text-[11px] text-text-faint mt-2 px-1">
+                Oyuncu satmak için oyuncunun profilinden <b>“Oyuncuyu Sat”</b>ı kullan — para anında kasana eklenir.
+              </p>
             </div>
           </div>
         </div>

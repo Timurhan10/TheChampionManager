@@ -2,8 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+
+// Menü grupları: açık/kapalı durumu localStorage'da saklanır; aktif sayfanın grubu otomatik açılır.
+const GROUPS: { key: string; label: string; icon: keyof typeof ICONS; items: [string, string][] }[] = [
+  { key: "team", label: "Takımım", icon: "team", items: [["/team", "Kadro"], ["/first-eleven", "İlk 11"], ["/tactics", "Taktik"], ["/training", "Antrenman"], ["/youth-academy", "Alt Yapı"]] },
+  { key: "transfer", label: "Transfer", icon: "transfer", items: [["/transfer-market", "Transfer Pazarı"], ["/scouting", "Scouting"]] },
+  { key: "club", label: "Kulüp", icon: "league", items: [["/league", "Lig"], ["/friendlies", "Hazırlık Maçları"], ["/cmp-shop", "CMP Mağazası"]] },
+];
+const LS_KEY = "cm-sidebar-groups";
 
 const icon = (path: React.ReactNode) => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -28,8 +36,33 @@ const ICONS = {
 
 export default function Sidebar({ teamName, username, isAdmin = false, open = false, onNavigate }: { teamName?: string; username?: string; isAdmin?: boolean; open?: boolean; onNavigate?: () => void }) {
   const pathname = usePathname();
-  const teamActive = pathname.startsWith("/team") || pathname.startsWith("/first-eleven") || pathname.startsWith("/tactics") || pathname.startsWith("/player");
-  const [teamOpen, setTeamOpen] = useState(teamActive);
+
+  // Aktif sayfanın grubunu bul (oyuncu profili Takımım altında sayılır)
+  const activeGroup = GROUPS.find((g) =>
+    g.items.some(([href]) => pathname === href || pathname.startsWith(href + "/"))
+  )?.key ?? (pathname.startsWith("/player") ? "team" : null);
+
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => ({
+    team: true, transfer: false, club: false,
+    ...(activeGroup ? { [activeGroup]: true } : {}),
+  }));
+
+  // Kayıtlı durumu yükle (aktif grup her zaman açık kalır)
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(LS_KEY) ?? "{}");
+      setOpenGroups((prev) => ({ ...prev, ...saved, ...(activeGroup ? { [activeGroup]: true } : {}) }));
+    } catch { /* yok say */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function toggleGroup(key: string) {
+    setOpenGroups((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      try { localStorage.setItem(LS_KEY, JSON.stringify(next)); } catch { /* yok say */ }
+      return next;
+    });
+  }
 
   const item = (href: string, label: string, ic: React.ReactNode) => {
     const active = pathname === href || pathname.startsWith(href + "/");
@@ -69,29 +102,28 @@ export default function Sidebar({ teamName, username, isAdmin = false, open = fa
 
       <nav className="flex-1 px-2 py-2 space-y-0.5 overflow-y-auto">
         {item("/dashboard", "Ana Ekran", ICONS.home)}
-        {/* Takımım — açılır grup */}
-        <button onClick={() => setTeamOpen((o) => !o)}
-          className={cn("w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13.5px] transition-colors border-l-[3px] border-transparent",
-            teamActive ? "bg-emerald/10 border-l-emerald text-text-cm" : "text-text-muted hover:bg-[rgba(148,163,184,0.06)]")}>
-          <span className={teamActive ? "text-emerald" : "text-text-faint"}>{ICONS.team}</span>
-          Takımım
-          <span className={cn("ml-auto text-text-faint transition-transform", teamOpen && "rotate-180")}>{ICONS.chevron}</span>
-        </button>
-        {teamOpen && (
-          <div className="space-y-0.5 py-0.5">
-            {subItem("/team", "Kadro")}
-            {subItem("/first-eleven", "İlk 11")}
-            {subItem("/tactics", "Taktik")}
-          </div>
-        )}
 
-        {item("/league", "Lig", ICONS.league)}
-        {item("/friendlies", "Hazırlık Maçları", ICONS.friendly)}
-        {item("/transfer-market", "Transfer Pazarı", ICONS.transfer)}
-        {item("/scouting", "Scouting", ICONS.scout)}
-        {item("/training", "Antrenman", ICONS.training)}
-        {item("/youth-academy", "Alt Yapı", ICONS.youth)}
-        {item("/cmp-shop", "CMP Mağazası", ICONS.shop)}
+        {GROUPS.map((g) => {
+          const groupActive = g.key === activeGroup;
+          const isOpen = !!openGroups[g.key];
+          return (
+            <div key={g.key}>
+              <button onClick={() => toggleGroup(g.key)}
+                className={cn("w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13.5px] transition-colors border-l-[3px] border-transparent",
+                  groupActive ? "bg-emerald/10 border-l-emerald text-text-cm" : "text-text-muted hover:bg-[rgba(148,163,184,0.06)]")}>
+                <span className={groupActive ? "text-emerald" : "text-text-faint"}>{ICONS[g.icon]}</span>
+                {g.label}
+                <span className={cn("ml-auto text-text-faint transition-transform", isOpen && "rotate-180")}>{ICONS.chevron}</span>
+              </button>
+              {isOpen && (
+                <div className="space-y-0.5 py-0.5">
+                  {g.items.map(([href, label]) => subItem(href, label))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+
         {isAdmin && item("/admin", "Admin", ICONS.admin)}
         {item("/settings", "Ayarlar", ICONS.settings)}
       </nav>

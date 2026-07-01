@@ -14,6 +14,8 @@ import type { Player, Position } from "@/types/game";
 
 const ORDER: Position[] = ["GK", "DF", "MF", "FW"];
 
+export const dynamic = "force-dynamic";
+
 export default async function TeamPage() {
   const { team } = await getGameContext();
   if (!team) redirect("/onboarding");

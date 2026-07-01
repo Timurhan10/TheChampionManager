@@ -5,12 +5,22 @@ import { createServiceClient } from "@/lib/supabase/server";
 import PageTopBar from "@/components/PageTopBar";
 import { ScoutLevelPanel, ScoutSearch, CountryScout } from "@/components/ScoutingClient";
 
+export const dynamic = "force-dynamic";
+
 function timeLeft(iso: string): string {
   const ms = new Date(iso).getTime() - Date.now();
   if (ms <= 0) return "Tamamlanıyor…";
   const h = Math.floor(ms / 3600000);
   const m = Math.floor((ms % 3600000) / 60000);
   return h > 0 ? `${h}s ${m}dk kaldı` : `${m}dk kaldı`;
+}
+
+// Gerçek ilerleme yüzdesi (created_at → completes_at)
+function progressPct(createdAt: string, completesAt: string): number {
+  const start = new Date(createdAt).getTime();
+  const end = new Date(completesAt).getTime();
+  if (end <= start) return 100;
+  return Math.max(3, Math.min(100, Math.round(((Date.now() - start) / (end - start)) * 100)));
 }
 
 export default async function ScoutingPage() {
@@ -47,7 +57,7 @@ export default async function ScoutingPage() {
 
         <CountryScout />
 
-        <div className="grid grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {/* Aktif görevler */}
           <div>
             <div className="section-label mb-2">Aktif Görevler ({active.length})</div>
@@ -62,7 +72,7 @@ export default async function ScoutingPage() {
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-cm/15 text-blue-cm-bright">{LEVEL_LABEL[r.level]}</span>
                     </div>
                     <div className="h-1.5 rounded-full bg-panel-inset overflow-hidden mb-1.5">
-                      <div className="h-full bg-blue-cm rounded-full animate-pulse" style={{ width: "60%" }} />
+                      <div className="h-full bg-blue-cm rounded-full animate-pulse" style={{ width: `${progressPct(r.created_at, r.completes_at)}%` }} />
                     </div>
                     <div className="text-xs text-text-muted">{timeLeft(r.completes_at)}</div>
                   </div>

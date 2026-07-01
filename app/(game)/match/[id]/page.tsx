@@ -91,7 +91,7 @@ export default async function MatchPage({ params }: { params: { id: string } }) 
           </div>
         </div>
 
-        <div className="grid grid-cols-[1fr_280px] gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-5">
           <MatchCanvas
             events={events}
             homeColor={hexToNumber(home?.primary_color ?? "#3B82F6")}

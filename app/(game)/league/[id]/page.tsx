@@ -24,6 +24,8 @@ interface Standing {
   goals_against: number;
 }
 
+export const dynamic = "force-dynamic";
+
 export default async function LeagueDetailPage({ params }: { params: { id: string } }) {
   const { team, authId } = await getGameContext();
   if (!team) redirect("/onboarding");
@@ -160,7 +162,7 @@ export default async function LeagueDetailPage({ params }: { params: { id: strin
           </div>
         )}
 
-        <div className="grid grid-cols-[1.5fr_1fr] gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-5">
           {/* Puan Tablosu */}
           <div>
             <div className="section-label mb-2">Puan Tablosu</div>

@@ -51,7 +51,7 @@ export default function TrainingClient({
   }
 
   return (
-    <div className="max-w-4xl grid grid-cols-[1fr_320px] gap-5">
+    <div className="max-w-4xl grid grid-cols-1 md:grid-cols-[1fr_320px] gap-5">
       {/* Oyuncular */}
       <div>
         <div className="flex items-center justify-between mb-2">

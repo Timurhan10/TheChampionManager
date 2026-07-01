@@ -22,6 +22,8 @@ import {
 import { formatCR } from "@/lib/utils";
 import type { Player } from "@/types/game";
 
+export const dynamic = "force-dynamic";
+
 export default async function PlayerProfilePage({ params }: { params: { id: string } }) {
   const { team } = await getGameContext();
   if (!team) redirect("/onboarding");
@@ -87,7 +89,7 @@ export default async function PlayerProfilePage({ params }: { params: { id: stri
           </div>
         </div>
 
-        <div className="grid grid-cols-[1fr_1fr_1fr_268px] gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_268px] gap-4">
           {/* Attribute panelleri */}
           {categories.filter((cat) => cat !== "goalkeeping" || player.position === "GK").slice(0, 3).map((cat) => (
             <AttributePanel key={cat} category={cat} player={player} revealedKeys={revealedSet} />

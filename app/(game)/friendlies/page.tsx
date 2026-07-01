@@ -40,7 +40,7 @@ export default async function FriendliesPage() {
     <>
       <PageTopBar title="Hazırlık Maçları" subtitle="İstediğin zaman AI'ya karşı maç oyna — sonuçlar reytingi, parayı veya puanı etkilemez" />
       <div className="flex-1 overflow-y-auto p-[22px]">
-        <div className="grid grid-cols-[1fr_340px] gap-5 max-w-5xl">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5 max-w-5xl">
           <FriendlyMatch
             canPlay={(players ?? []).length >= 11}
             players={(players ?? []) as Player[]}
