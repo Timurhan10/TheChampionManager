@@ -174,12 +174,22 @@ export default function LiveMatchEngineCanvas({
             <div>
               <div className="text-[11px] text-text-faint mb-1">Çıkacak (sahadaki)</div>
               <div className="space-y-1 max-h-[160px] overflow-y-auto pr-1">
-                {onPitch.map((p) => (
-                  <button key={p.id} onClick={() => setSubOut(p.id)}
-                    className={cn("w-full text-left px-2 py-1.5 rounded text-[12px] border", subOut === p.id ? "border-emerald bg-emerald/10 text-emerald" : "border-transparent bg-panel-inset hover:border-border-cm")}>
-                    <span className="font-bold mr-1">{p.position}</span>{p.name}
-                  </button>
-                ))}
+                {onPitch.map((p) => {
+                  const cond = Math.round((p.condition ?? 1) * 100);
+                  const condColor = cond < 55 ? "#EF4444" : cond < 75 ? "#F59E0B" : "#10B981";
+                  return (
+                    <button key={p.id} onClick={() => setSubOut(p.id)}
+                      className={cn("w-full text-left px-2 py-1.5 rounded text-[12px] border", subOut === p.id ? "border-emerald bg-emerald/10 text-emerald" : "border-transparent bg-panel-inset hover:border-border-cm")}>
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="truncate"><span className="font-bold mr-1">{p.position}</span>{p.name}</span>
+                        <span className="tabular-nums text-[10px]" style={{ color: condColor }}>%{cond}</span>
+                      </span>
+                      <span className="block h-1 rounded-full bg-black/30 mt-1 overflow-hidden">
+                        <span className="block h-full rounded-full" style={{ width: `${cond}%`, background: condColor }} />
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
             <div>
