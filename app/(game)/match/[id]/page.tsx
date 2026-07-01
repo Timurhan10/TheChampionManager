@@ -6,7 +6,8 @@ import { isAdmin } from "@/lib/admin";
 import PageTopBar from "@/components/PageTopBar";
 import MatchCanvas from "@/components/MatchCanvas";
 import PreMatch from "@/components/PreMatch";
-import LiveMatch from "@/components/LiveMatch";
+import LiveLeagueMatch from "@/components/LiveLeagueMatch";
+import { loadEngineTeam } from "@/lib/match-engine/run";
 import { teamBadge, hexToNumber } from "@/lib/utils";
 import type { MatchEvent } from "@/types/game";
 
@@ -34,20 +35,28 @@ export default async function MatchPage({ params }: { params: { id: string } }) 
 
   // Maç öncesi
   if (match.status === "scheduled") {
-    // Kullanıcının takımı sahadaysa ya da admin ise maçı CANLI başlatıp izleyebilir.
+    // Kullanıcının takımı sahadaysa ya da admin ise maçı CANLI motorla oynayabilir.
     const isParticipant = team.id === match.home_team_id || team.id === match.away_team_id;
     const canPlay = isParticipant || (authId ? await isAdmin(supabase, authId) : false);
     if (canPlay) {
+      // İki takımı motor için yükle (kadro + taktik). Not: motor istemcide çalıştığı
+      // için rakip kadro verisi istemciye gider; UI göstermez (hobi oyunu için kabul).
+      const [homeTeam, awayTeam] = await Promise.all([
+        loadEngineTeam(supabase, match.home_team_id),
+        loadEngineTeam(supabase, match.away_team_id),
+      ]);
+      const mySide = team.id === match.away_team_id ? "away" : "home";
       return (
         <>
           <PageTopBar title="Canlı Maç" subtitle={`Hafta ${match.week ?? "-"}`} />
-          <LiveMatch
+          <LiveLeagueMatch
             matchId={match.id}
-            homeName={homeName}
-            awayName={awayName}
+            home={homeTeam}
+            away={awayTeam}
             homeColor={hexToNumber(home?.primary_color ?? "#3B82F6")}
             awayColor={hexToNumber(away?.primary_color ?? "#EF4444")}
             scheduledAt={match.scheduled_at}
+            mySide={mySide}
           />
         </>
       );

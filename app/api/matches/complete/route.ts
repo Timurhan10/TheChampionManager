@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { runMatch } from "@/lib/match-engine/run";
+import { runMatch, completeMatchWithLiveResult } from "@/lib/match-engine/run";
+import type { SimResult } from "@/lib/match-engine/simulator";
 import { isAdmin } from "@/lib/admin";
 
 // Tek bir maçı simüle edip tamamlar. (Cron veya manuel tetikleme)
 export async function POST(req: Request) {
-  let body: { matchId: string; returnResult?: boolean };
+  let body: { matchId: string; returnResult?: boolean; liveResult?: SimResult };
   try {
     body = await req.json();
   } catch {
@@ -40,11 +41,17 @@ export async function POST(req: Request) {
     }
   }
 
+  // Canlı motorla oynanan maç: istemci sonucu gönderir, sunucu doğrulayıp kaydeder.
+  if (body.liveResult) {
+    const res = await completeMatchWithLiveResult(svc, body.matchId, body.liveResult);
+    if (res.error) return NextResponse.json({ error: res.error }, { status: 400 });
+    return NextResponse.json({ ok: true, skipped: res.skipped ?? false });
+  }
+
+  // Anlık simülasyon (cron / admin / eski akış)
   const res = await runMatch(svc, body.matchId);
   if (res.error) return NextResponse.json({ error: res.error }, { status: 400 });
 
-  // Canlı maç için sonucu (skor + olay zaman çizelgesi) istemciye döndür; istemci
-  // 10 dk'lik canlı animasyonu bu sonuçtan oynatır.
   return NextResponse.json({
     ok: true,
     skipped: res.skipped ?? false,
