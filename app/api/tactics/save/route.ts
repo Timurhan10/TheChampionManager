@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { STYLE_PRESETS } from "@/lib/tactic-styles";
 
 const FORMATIONS = ["4-4-2", "4-3-3", "4-2-3-1", "3-5-2", "5-3-2", "4-1-4-1"];
 const MENTALITY = ["defensive", "balanced", "attacking"];
 const PRESSING = ["low", "medium", "high"];
 const TEMPO = ["slow", "normal", "fast"];
 const PASS_STYLE = ["short", "mixed", "long"];
+const WIDTH = ["narrow", "normal", "wide"];
+const DEF_LINE = ["low", "medium", "high"];
 
 export async function POST(req: Request) {
   const supabase = createClient();
@@ -29,6 +32,18 @@ export async function POST(req: Request) {
   if (body.lineup && typeof body.lineup === "object") update.lineup = body.lineup;
   if (Array.isArray(body.substitutes)) update.substitutes = body.substitutes;
   if (body.player_instructions && typeof body.player_instructions === "object") update.player_instructions = body.player_instructions;
+
+  // Taktik v2: stil + ince ayarlar
+  if (body.style === null || (typeof body.style === "string" && body.style in STYLE_PRESETS)) update.style = body.style;
+  if (body.advanced && typeof body.advanced === "object") {
+    const a = body.advanced;
+    const clean: Record<string, unknown> = {};
+    if (WIDTH.includes(a.width)) clean.width = a.width;
+    if (DEF_LINE.includes(a.defensive_line)) clean.defensive_line = a.defensive_line;
+    if (typeof a.time_wasting === "boolean") clean.time_wasting = a.time_wasting;
+    if (typeof a.counter_attack === "boolean") clean.counter_attack = a.counter_attack;
+    update.advanced = clean;
+  }
 
   // team_id unique olduğundan upsert
   const { error } = await svc.from("tactics").upsert(update, { onConflict: "team_id" });

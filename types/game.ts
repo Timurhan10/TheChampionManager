@@ -39,6 +39,16 @@ export interface GameUser {
   created_at: string;
 }
 
+export type TacticStyle =
+  | "gegenpress" | "tiki_taka" | "counter" | "direct" | "wing_play" | "park_bus" | "balanced";
+
+export interface TacticAdvanced {
+  width?: "narrow" | "normal" | "wide";
+  defensive_line?: "low" | "medium" | "high";
+  time_wasting?: boolean;
+  counter_attack?: boolean;
+}
+
 export interface Tactics {
   id: string;
   team_id: string;
@@ -47,6 +57,8 @@ export interface Tactics {
   pressing: string;
   tempo: string;
   pass_style: string;
+  style?: TacticStyle | null;   // oyun stili (Motor v2)
+  advanced?: TacticAdvanced;    // ince ayarlar (genişlik, savunma hattı...)
   lineup: Record<string, string>; // pozisyon slotu -> player_id
   substitutes: string[];
   player_instructions?: Record<string, PlayerInstruction>; // player_id -> talimatlar
@@ -61,6 +73,8 @@ export interface LineupPreset {
   pressing: string;
   tempo: string;
   pass_style: string;
+  style?: TacticStyle | null;
+  advanced?: TacticAdvanced;
   lineup: Record<string, string>;
   substitutes: string[];
   player_instructions?: Record<string, PlayerInstruction>;
