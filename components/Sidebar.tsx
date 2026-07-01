@@ -23,6 +23,7 @@ const ICONS = {
   admin: icon(<><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" /><path d="m9 12 2 2 4-4" /></>),
   chevron: icon(<path d="m6 9 6 6 6-6" />),
   home: icon(<><path d="M3 9.5 12 3l9 6.5" /><path d="M5 10v10h11V10" /><path d="M9 20v-6h4v6" /></>),
+  training: icon(<><path d="M6.5 6.5 17.5 17.5" /><path d="m21 21-1.5-1.5" /><path d="M3 3l1.5 1.5" /><path d="M18 6l3-3" /><path d="m3 21 3-3" /><path d="M6.5 6.5 3 10l4 4 3.5-3.5" /><path d="M17.5 17.5 21 14l-4-4-3.5 3.5" /></>),
 };
 
 export default function Sidebar({ teamName, username, isAdmin = false, open = false, onNavigate }: { teamName?: string; username?: string; isAdmin?: boolean; open?: boolean; onNavigate?: () => void }) {
@@ -88,6 +89,7 @@ export default function Sidebar({ teamName, username, isAdmin = false, open = fa
         {item("/friendlies", "Hazırlık Maçları", ICONS.friendly)}
         {item("/transfer-market", "Transfer Pazarı", ICONS.transfer)}
         {item("/scouting", "Scouting", ICONS.scout)}
+        {item("/training", "Antrenman", ICONS.training)}
         {item("/youth-academy", "Alt Yapı", ICONS.youth)}
         {item("/cmp-shop", "CMP Mağazası", ICONS.shop)}
         {isAdmin && item("/admin", "Admin", ICONS.admin)}

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { getGameContext } from "@/lib/data";
 import { createServiceClient } from "@/lib/supabase/server";
 import PageTopBar from "@/components/PageTopBar";
-import { ScoutLevelPanel, ScoutSearch } from "@/components/ScoutingClient";
+import { ScoutLevelPanel, ScoutSearch, CountryScout } from "@/components/ScoutingClient";
 
 function timeLeft(iso: string): string {
   const ms = new Date(iso).getTime() - Date.now();
@@ -44,6 +44,8 @@ export default async function ScoutingPage() {
       <PageTopBar title="Scouting Merkezi" subtitle="Yetenek keşfi" />
       <div className="flex-1 overflow-y-auto p-[22px] space-y-5">
         <ScoutLevelPanel level={scoutLevel} />
+
+        <CountryScout />
 
         <div className="grid grid-cols-3 gap-5">
           {/* Aktif görevler */}

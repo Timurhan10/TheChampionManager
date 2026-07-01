@@ -10,6 +10,7 @@ import {
   keyAttrs,
   type AttributeKey,
 } from "./attributes";
+import { countryByKey, randomCountry, countryPlayerName } from "./countries";
 import type { Position } from "@/types/game";
 
 function randInt(min: number, max: number): number {
@@ -56,6 +57,7 @@ export interface GeneratedPlayer {
   potential: number;
   value_cr: number;
   is_youth_academy: boolean;
+  country: string;
   attributes: Record<string, number | null>;
 }
 
@@ -64,6 +66,7 @@ export interface GenerateOptions {
   age?: number;
   position: Position;
   isYouth?: boolean;
+  country?: string; // ülke anahtarı (ör. "BR"); verilmezse rastgele
   // Attribute üretim aralığı (varsayılan 8-12; AI takımları 8-14 kullanabilir)
   attrMin?: number;
   attrMax?: number;
@@ -112,16 +115,21 @@ export function generatePlayer(opts: GenerateOptions): GeneratedPlayer {
   // Pozisyona uygun hafif eğilim (GK refleks vb. zaten dolu; FW şut, DF top çalma)
   applyPositionBias(attributes, position, attrMax);
 
+  // Ülke eğilimi (ülkenin öne çıkan özelliklerini hafif yükselt)
+  const country = countryByKey(opts.country) ?? randomCountry();
+  for (const key of country.bias) bump(attributes, key, 2, attrMax);
+
   const potential = potentialForAge(age);
   const value_cr = computeValue(attributes, position, age, potential);
 
   return {
-    name: opts.name ?? generatePlayerName(),
+    name: opts.name ?? countryPlayerName(country),
     age,
     position,
     potential,
     value_cr,
     is_youth_academy: isYouth,
+    country: country.key,
     attributes,
   };
 }
