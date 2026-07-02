@@ -2,6 +2,9 @@
 // (ayrı sayaç tablosu yok — kaynak veriler zaten günlük damgalı).
 // Claim doğrulaması sunucuda: /api/tasks/claim aynı hesabı yapar.
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { utcDayStart, utcDayKey } from "./utils";
+
+export { utcDayStart, utcDayKey };
 
 export interface TaskDef {
   key: string;
@@ -22,17 +25,6 @@ export const DAILY_TASKS: TaskDef[] = [
 
 export function taskByKey(key: string): TaskDef | undefined {
   return DAILY_TASKS.find((t) => t.key === key);
-}
-
-// UTC gün başlangıcı — antrenman limiti ile aynı gün tanımı.
-export function utcDayStart(): Date {
-  const d = new Date();
-  d.setUTCHours(0, 0, 0, 0);
-  return d;
-}
-
-export function utcDayKey(): string {
-  return utcDayStart().toISOString().slice(0, 10);
 }
 
 // Takımın bugünkü ilerlemesi (görev anahtarı → sayı).

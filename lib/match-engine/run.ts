@@ -85,10 +85,7 @@ async function rewardTeam(svc: SupabaseClient, team: EngineTeam, gf: number, ga:
   const { data: t } = await svc.from("teams").select("user_id").eq("id", team.teamId).single();
   if (!t?.user_id) return;
   const reward = gf > ga ? MATCH_REWARDS.win : gf === ga ? MATCH_REWARDS.draw : MATCH_REWARDS.loss;
-  const { data: u } = await svc.from("users").select("credits").eq("id", t.user_id).single();
-  if (u) {
-    await svc.from("users").update({ credits: u.credits + reward }).eq("id", t.user_id);
-  }
+  await svc.rpc("add_credits", { uid: t.user_id, delta: reward }); // atomik — tek para kuralı
 }
 
 export async function runMatch(svc: SupabaseClient, matchId: string): Promise<{ error?: string; skipped?: boolean; result?: SimResult }> {

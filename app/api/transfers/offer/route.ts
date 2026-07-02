@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { computeBuyPrice } from "@/lib/pricing";
+import { formatNumber } from "@/lib/utils";
 import { notify } from "@/lib/notifications";
 
 // Serbest ajan ise direkt satın alım; başka takıma aitse teklif oluşturur.
@@ -31,7 +32,7 @@ export async function POST(req: Request) {
     if (gameUser.credits < price) return NextResponse.json({ error: "Yetersiz CR." }, { status: 400 });
 
     await svc.from("players").update({ team_id: buyer.id, for_sale: false, asking_price: null }).eq("id", player.id);
-    await svc.from("users").update({ credits: gameUser.credits - price }).eq("id", user.id);
+    await svc.rpc("add_credits", { uid: user.id, delta: -price });
     await svc.from("transfers").insert({
       player_id: player.id, from_team_id: null, to_team_id: buyer.id,
       offer_amount: price, status: "accepted", resolved_at: new Date().toISOString(),
@@ -54,7 +55,7 @@ export async function POST(req: Request) {
   const { data: sellerTeam } = await svc.from("teams").select("user_id").eq("id", player.team_id).maybeSingle();
   if (sellerTeam?.user_id) {
     await notify(svc, sellerTeam.user_id, "transfer_offer", `${player.name} için teklif geldi`,
-      `${amount.toLocaleString("tr-TR")} CR teklif edildi.`);
+      `${formatNumber(amount)} CR teklif edildi.`);
   }
 
   return NextResponse.json({ ok: true, purchased: false });

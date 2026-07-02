@@ -33,10 +33,7 @@ export async function POST(req: Request) {
   if (claimErr) return NextResponse.json({ error: "Bu görevin ödülü bugün zaten alındı." }, { status: 409 });
 
   await svc.rpc("add_credits", { uid: user.id, delta: task.rewardCr });
-  if (task.rewardCmp > 0) {
-    const { data: u } = await svc.from("users").select("cmp_points").eq("id", user.id).single();
-    if (u) await svc.from("users").update({ cmp_points: u.cmp_points + task.rewardCmp }).eq("id", user.id);
-  }
+  if (task.rewardCmp > 0) await svc.rpc("add_cmp", { uid: user.id, delta: task.rewardCmp });
 
   revalidatePath("/tasks");
   revalidatePath("/dashboard");

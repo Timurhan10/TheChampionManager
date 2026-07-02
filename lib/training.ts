@@ -3,9 +3,13 @@
 // Kesirli birikim training_progress'te tutulur; ≥1 olunca integer attribute +1.
 import type { AttributeKey } from "./attributes";
 import { ATTR_LABELS } from "./attributes";
+import { potentialStars } from "./utils";
 import type { Player, Position } from "@/types/game";
 
 export type TrainingKind = "technical" | "physical" | "mental" | "defensive" | "goalkeeping";
+
+// Günlük antrenman hakkı — TEK kaynak (API, sayfa ve UI aynı sabiti kullanır).
+export const DAILY_TRAINING_LIMIT = 3;
 
 export const TRAINING_TYPES: Record<TrainingKind, { label: string; attrs: AttributeKey[]; pos: Position[] }> = {
   technical: { label: "Teknik", attrs: ["passing", "shooting", "first_touch", "dribbling", "technique", "crossing"], pos: ["FW", "MF"] },
@@ -18,7 +22,7 @@ export const TRAINING_TYPES: Record<TrainingKind, { label: string; attrs: Attrib
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
 function potentialCoef(potential: number | null): number {
-  const stars = clamp(Math.round((potential ?? 10) / 4), 1, 5);
+  const stars = potentialStars(potential ?? 10); // tek yıldız kuralı (lib/utils)
   return [0, 0.4, 0.65, 1.0, 1.35, 1.75][stars];
 }
 function ageCoef(age: number): number {

@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { computeSellPrice } from "@/lib/pricing";
+import { computeSellPrice, SALE_PAID_MARK } from "@/lib/pricing";
+import { formatNumber } from "@/lib/utils";
 import { notify } from "@/lib/notifications";
-import { SALE_PAID_MARK } from "@/lib/sales";
 
 // Oyuncuyu ANINDA satar: fiyat sistemce (gizli, performansa göre) belirlenir,
 // para hemen kasaya eklenir — sonradan gelmez. forSale=false ise satıştan kaldırır.
@@ -78,7 +78,7 @@ export async function POST(req: Request) {
   });
 
   const { data: p } = await svc.from("players").select("name").eq("id", player.id).maybeSingle();
-  await notify(svc, user.id, "transfer_result", `${p?.name ?? "Oyuncu"} satıldı`, `+${price.toLocaleString("tr-TR")} CR kasana eklendi.`);
+  await notify(svc, user.id, "transfer_result", `${p?.name ?? "Oyuncu"} satıldı`, `+${formatNumber(price)} CR kasana eklendi.`);
 
   return NextResponse.json({ ok: true, sold: true, price });
 }

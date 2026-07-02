@@ -9,7 +9,7 @@ import PlayerCompare, { type ComparePlayer } from "@/components/PlayerCompare";
 import { getTeamEditability } from "@/lib/team-guard";
 import { overallRating } from "@/lib/player-generator";
 import { POSITION_COLORS, POSITION_LABELS, ratingColor } from "@/lib/attributes";
-import { formatCR, formatNumber } from "@/lib/utils";
+import { formatCR, formatNumber, potentialStars } from "@/lib/utils";
 import type { Player, Position } from "@/types/game";
 
 const ORDER: Position[] = ["GK", "DF", "MF", "FW"];
@@ -132,9 +132,9 @@ function Divider() {
   return <div className="w-px h-9 bg-border-cm" />;
 }
 
-// Potansiyel (gizli 1-20) → 5 yıldız (yuvarlanmış).
+// Potansiyel (gizli 1-20) → 5 yıldız (tek kural: lib/utils potentialStars).
 function PotentialStars({ potential }: { potential: number | null }) {
-  const filled = potential != null ? Math.max(0, Math.min(5, Math.round(potential / 4))) : 0;
+  const filled = potentialStars(potential);
   return (
     <div className="flex gap-0.5" title={potential != null ? `Potansiyel: ${filled}/5` : "Potansiyel bilinmiyor"}>
       {Array.from({ length: 5 }).map((_, i) => (

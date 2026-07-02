@@ -20,7 +20,7 @@ import {
   type AttributeCategory,
   type AttributeKey,
 } from "@/lib/attributes";
-import { formatCR } from "@/lib/utils";
+import { formatCR, potentialStars } from "@/lib/utils";
 import type { Player } from "@/types/game";
 
 export const dynamic = "force-dynamic";
@@ -108,7 +108,7 @@ export default async function PlayerProfilePage({ params }: { params: { id: stri
               <div className="section-label mb-2">Potansiyel</div>
               <div className="flex gap-1">
                 {Array.from({ length: 5 }).map((_, i) => {
-                  const filled = fullyKnown && player.potential != null && i < Math.round(player.potential / 4);
+                  const filled = fullyKnown && i < potentialStars(player.potential);
                   return (
                     <svg key={i} width="20" height="20" viewBox="0 0 24 24" fill={filled ? "#F59E0B" : "none"} stroke={filled ? "#F59E0B" : "#475A73"} strokeWidth="2">
                       <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />

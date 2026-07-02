@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { formatNumber } from "@/lib/utils";
 
 interface AdminUser {
   id: string; email: string; username: string; credits: number; cmp: number;
@@ -16,8 +15,6 @@ export default function AdminPanel() {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
   const [q, setQ] = useState("");
-  const [reconciling, setReconciling] = useState(false);
-  const [reconcileMsg, setReconcileMsg] = useState<string | null>(null);
 
   async function load() {
     setLoading(true); setError(null);
@@ -65,18 +62,6 @@ export default function AdminPanel() {
     } catch (e: any) { setError(e.message); } finally { setSavingId(null); }
   }
 
-  async function reconcile() {
-    if (!confirm("Geçmiş satışların ödenmemiş paraları satıcılara eklenecek. Bu işlem yalnızca işaretsiz (eski) satışlar için bir kez çalışır. Devam edilsin mi?")) return;
-    setReconciling(true); setReconcileMsg(null); setError(null);
-    try {
-      const r = await fetch("/api/admin/reconcile-sales", { method: "POST" });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error);
-      setReconcileMsg(`${d.salesReconciled} satış işlendi · ${d.usersCredited} kullanıcıya toplam ${formatNumber(d.totalCr)} CR eklendi.`);
-      await load();
-    } catch (e: any) { setError(e.message); } finally { setReconciling(false); }
-  }
-
   const filtered = users.filter((u) =>
     !q || u.email.toLowerCase().includes(q.toLowerCase()) || (u.username ?? "").toLowerCase().includes(q.toLowerCase()) || (u.team ?? "").toLowerCase().includes(q.toLowerCase())
   );
@@ -85,16 +70,9 @@ export default function AdminPanel() {
     <div>
       <div className="flex items-center justify-between mb-4 gap-3">
         <div className="text-sm text-text-muted">{users.length} kullanıcı</div>
-        <div className="flex items-center gap-2">
-          <button onClick={reconcile} disabled={reconciling}
-            className="text-xs font-semibold px-3 py-2 rounded-lg border border-amber text-amber hover:bg-amber/10 disabled:opacity-50">
-            {reconciling ? "İşleniyor…" : "Geçmiş Satış Paralarını Ekle"}
-          </button>
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="E-posta / kullanıcı / takım ara…"
-            className="bg-panel-inset border border-border-cm rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald w-64" />
-        </div>
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="E-posta / kullanıcı / takım ara…"
+          className="bg-panel-inset border border-border-cm rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald w-64" />
       </div>
-      {reconcileMsg && <div className="mb-3 px-3 py-2 rounded-lg bg-emerald/15 text-emerald-bright text-sm border border-emerald/40">{reconcileMsg}</div>}
 
       {loading && <div className="text-center py-10 text-text-muted">Yükleniyor…</div>}
       {error && <div className="mb-3 px-3 py-2 rounded-lg bg-danger/15 text-danger text-sm border border-danger/40">{error}</div>}

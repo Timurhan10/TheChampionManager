@@ -1,14 +1,14 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { overallRating } from "@/lib/player-generator";
 import { POSITION_COLORS, ratingColor, keyAttrs, ATTR_LABELS } from "@/lib/attributes";
 import { FORMATIONS, shortName } from "@/lib/formations";
+import { useLineupEditor, LineupPitch } from "./LineupPitch";
 import type { Player, Tactics, LineupPreset } from "@/types/game";
 import { cn, potentialStars } from "@/lib/utils";
 
-interface DragItem { playerId: string; from: "bench" | number; }
 type Selected = { type: "slot"; idx: number } | { type: "bench"; id: string } | null;
 
 // Mobil öncelikli, SADECE ilk 11 düzenleme: dokun-yerleştir + (masaüstü) sürükle.
@@ -36,37 +36,9 @@ export default function FirstElevenEditor({ players, initial }: { players: Playe
   });
 
   const slots = FORMATIONS[formation];
-  const byId = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
-  const usedIds = useMemo(() => new Set(Object.values(lineup).filter(Boolean)), [lineup]);
-  const benchPlayers = players.filter((p) => !usedIds.has(p.id));
-  const dragRef = useRef<DragItem | null>(null);
-  const dragBadgeRef = useRef<HTMLElement | null>(null);
-
-  function placeInSlot(slotIdx: number, playerId: string) {
-    setLineup((prev) => {
-      const next = { ...prev };
-      for (const k of Object.keys(next)) if (next[k] === playerId) delete next[k];
-      if (playerId) next[String(slotIdx)] = playerId; else delete next[String(slotIdx)];
-      return next;
-    });
-    setSubs((prev) => prev.filter((id) => id !== playerId));
-  }
-  function swapSlots(i: number, j: number) {
-    setLineup((prev) => {
-      const next = { ...prev };
-      const a = next[String(i)], b = next[String(j)];
-      if (b) next[String(i)] = b; else delete next[String(i)];
-      if (a) next[String(j)] = a; else delete next[String(j)];
-      return next;
-    });
-  }
-  function removeFromLineup(playerId: string) {
-    setLineup((prev) => {
-      const next = { ...prev };
-      for (const k of Object.keys(next)) if (next[k] === playerId) delete next[k];
-      return next;
-    });
-  }
+  // Ortak diziliş mantığı (TacticsBoard ile aynı çekirdek — LineupPitch.tsx)
+  const { byId, usedIds, benchPlayers, placeInSlot, swapSlots, onDragStart, onDragEndCleanup, onDropSlot, onDropBench, autoFill } =
+    useLineupEditor({ players, lineup, setLineup, onPlace: (id) => setSubs((prev) => prev.filter((x) => x !== id)) });
 
   // --- Dokun-yerleştir (mobil dostu) ---
   function tapSlot(idx: number) {
@@ -82,55 +54,6 @@ export default function FirstElevenEditor({ players, initial }: { players: Playe
     if (selected?.type === "slot") { placeInSlot(selected.idx, id); setSelected(null); }
     else if (selected?.type === "bench" && selected.id === id) setSelected(null);
     else setSelected({ type: "bench", id });
-  }
-
-  // --- Sürükleme (masaüstü) — yuvarlak numara rozeti ---
-  function onDragStart(e: React.DragEvent, item: DragItem, player?: Player) {
-    dragRef.current = item;
-    if (player && e.dataTransfer) {
-      const color = POSITION_COLORS[player.position]?.color ?? "#10B981";
-      const label = player.shirt_number ?? overallRating(player, player.position);
-      const badge = document.createElement("div");
-      badge.textContent = String(label);
-      badge.style.cssText =
-        "position:fixed;top:-140px;left:-140px;width:38px;height:38px;border-radius:9999px;" +
-        "display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;" +
-        "color:#F1F5F9;background:#0C1524;border:2px solid " + color + ";box-shadow:0 2px 10px rgba(0,0,0,.5);z-index:9999;font-family:sans-serif;";
-      document.body.appendChild(badge);
-      dragBadgeRef.current = badge;
-      e.dataTransfer.setDragImage(badge, 19, 19);
-      e.dataTransfer.effectAllowed = "move";
-    }
-  }
-  function onDragEndCleanup() { dragBadgeRef.current?.remove(); dragBadgeRef.current = null; }
-  function onDropSlot(slotIdx: number) {
-    const item = dragRef.current; if (!item) return;
-    if (typeof item.from === "number") {
-      const from = item.from;
-      setLineup((prev) => {
-        const next = { ...prev };
-        const target = next[String(slotIdx)];
-        next[String(slotIdx)] = item.playerId;
-        if (target) next[String(from)] = target; else delete next[String(from)];
-        return next;
-      });
-    } else {
-      placeInSlot(slotIdx, item.playerId);
-    }
-    dragRef.current = null;
-  }
-  function onDropBench() { const item = dragRef.current; if (item && typeof item.from === "number") removeFromLineup(item.playerId); dragRef.current = null; }
-
-  function autoFill() {
-    const next: Record<string, string> = {};
-    const used = new Set<string>();
-    const pool = [...players].sort((a, b) => overallRating(b, b.position) - overallRating(a, a.position));
-    slots.forEach((slot, i) => {
-      let pick = pool.find((p) => !used.has(p.id) && p.position === slot.role);
-      if (!pick) pick = pool.find((p) => !used.has(p.id));
-      if (pick) { next[String(i)] = pick.id; used.add(pick.id); }
-    });
-    setLineup(next);
   }
 
   // --- Kaydet / kullan ---
@@ -199,7 +122,7 @@ export default function FirstElevenEditor({ players, initial }: { players: Playe
             {f}
           </button>
         ))}
-        <button onClick={autoFill} className="shrink-0 px-3 py-2 rounded-lg text-xs font-semibold bg-blue-cm/15 border border-blue-cm text-blue-cm-bright">
+        <button onClick={() => autoFill(slots)} className="shrink-0 px-3 py-2 rounded-lg text-xs font-semibold bg-blue-cm/15 border border-blue-cm text-blue-cm-bright">
           Otomatik Diz
         </button>
       </div>
@@ -210,45 +133,27 @@ export default function FirstElevenEditor({ players, initial }: { players: Playe
         </div>
       )}
 
-      {/* Saha */}
+      {/* Saha (ortak bileşen) */}
       <div className="w-full max-w-[420px] mx-auto">
-        <div className="relative w-full aspect-[3/4] rounded-card overflow-hidden border border-border-cm"
-          style={{ background: "repeating-linear-gradient(180deg, #0f3d2a 0px, #0f3d2a 36px, #0d3525 36px, #0d3525 72px)" }}
-          onDragOver={(e) => e.preventDefault()} onDrop={onDropBench}>
-          <div className="absolute inset-3 border-2 border-white/20 rounded" />
-          <div className="absolute left-3 right-3 top-1/2 h-0.5 bg-white/20" />
-          <div className="absolute left-1/2 top-1/2 w-16 h-16 -translate-x-1/2 -translate-y-1/2 border-2 border-white/20 rounded-full" />
-
-          {slots.map((slot, i) => {
-            const pid = lineup[String(i)];
-            const player = pid ? byId.get(pid) : undefined;
-            const color = POSITION_COLORS[slot.role];
-            const isSel = selected?.type === "slot" && selected.idx === i;
-            return (
-              <div key={i} className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-0.5"
-                style={{ left: `${slot.x}%`, top: `${slot.y}%` }}
-                onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.stopPropagation(); onDropSlot(i); }}>
-                <button
-                  draggable={!!player}
-                  onDragStart={(e) => player && onDragStart(e, { playerId: player.id, from: i }, player)}
-                  onDragEnd={onDragEndCleanup}
-                  onClick={() => tapSlot(i)}
-                  className={cn("w-10 h-10 rounded-full flex items-center justify-center text-[11px] font-bold border-2 transition-transform active:scale-95",
-                    isSel && "ring-2 ring-emerald ring-offset-1 ring-offset-[#0f3d2a] scale-110")}
-                  style={{ background: "#0C1524", borderColor: color.color, color: player ? "#F1F5F9" : color.color }}
-                  title={player ? `${player.name} · ${overallRating(player, player.position)}` : slot.role}>
-                  {player ? (player.shirt_number ?? overallRating(player, player.position)) : slot.role}
-                </button>
-                {player ? (
-                  <span className="text-[9px] text-white/90 bg-black/40 rounded px-1 max-w-[72px] truncate">{shortName(player.name)}</span>
-                ) : (
-                  <span className="text-[9px] text-white/40">{slot.role}</span>
-                )}
-              </div>
-            );
-          })}
-          <div className="absolute bottom-2 left-2 text-xs font-display font-bold px-2 py-1 rounded bg-black/40">{formation}</div>
-        </div>
+        <LineupPitch
+          formation={formation}
+          lineup={lineup}
+          byId={byId}
+          slotSize="md"
+          selectedIdx={selected?.type === "slot" ? selected.idx : null}
+          onSlotClick={tapSlot}
+          onDragStart={onDragStart}
+          onDragEndCleanup={onDragEndCleanup}
+          onDropSlot={onDropSlot}
+          onDropBench={onDropBench}
+          renderUnderSlot={(player, slot) =>
+            player ? (
+              <span className="text-[9px] text-white/90 bg-black/40 rounded px-1 max-w-[72px] truncate">{shortName(player.name)}</span>
+            ) : (
+              <span className="text-[9px] text-white/40">{slot.role}</span>
+            )
+          }
+        />
         <div className="mt-2 text-[11px] text-text-faint text-center">
           Seçili: {usedIds.size}/11 · <b>Dokun</b>: oyuncuyu/slotu seç, sonra hedefe dokun (yer değiştir). Masaüstünde <b>sürükle</b> de olur.
         </div>

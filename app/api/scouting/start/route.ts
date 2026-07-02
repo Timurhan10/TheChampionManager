@@ -42,7 +42,7 @@ export async function POST(req: Request) {
   });
   if (insErr) return NextResponse.json({ error: insErr.message }, { status: 400 });
 
-  await svc.from("users").update({ credits: gameUser.credits - pkg.cost }).eq("id", user.id);
+  await svc.rpc("add_credits", { uid: user.id, delta: -pkg.cost });
 
   return NextResponse.json({ ok: true, instant: isInstant });
 }

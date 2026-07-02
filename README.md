@@ -76,7 +76,7 @@ npm run dev
 - **Ligi başlatma** (`/api/leagues/start`): kurucu eksik slotları AI takımlarıyla doldurur (her biri 25 oyunculu, attribute 8-14), fikstür üretilir, `status='active'`.
 - **Round-robin fikstür** (`lib/schedule-generator.ts`): 12 takım çift devreli = 22 tur / 132 maç, haftada tam 2 maç, 11 hafta. Maçlar lig maç günleri + saatine bağlanır.
 - **Lig detay sayfası**: tam puan tablosu (O/G/B/M/AG/YG/AV/P), kendi takım vurgusu, terfi (1-3) & küme düşme bölgeleri, haftalara gruplu fikstür.
-- **Cron** (`/api/cron/trigger-matches` + `vercel.json`): her 15 dk vadesi gelen maçları tespit eder (motor Faz 3'te bağlanacak).
+- **Cron** (`/api/cron/daily` + `vercel.json`): günlük tek orkestratör — vadesi gelen maçlar, scout raporları, pazar rotasyonu, oyuncu değeri tazeleme.
 
 ### Tamamlanan Özellikler (Faz 3)
 
@@ -84,7 +84,7 @@ npm run dev
 - **Taktik kaydetme** (`/api/tactics/save`): `tactics` tablosuna upsert.
 - **Maç simülasyon motoru** (`lib/match-engine/simulator.ts`): kadro + taktikten atak/defans/orta saha gücü hesabı, Poisson tabanlı gol üretimi, ev sahibi avantajı, mentalite (hücumcu +%20 gol şansı) & pressing etkileri, pozisyon-ağırlıklı golcü seçimi, kart/değişiklik olayları, top hakimiyeti/şut/korner istatistikleri, maçın adamı. _200 maçlık testte 0 çökme, ~2.6 gol/maç._
 - **Maç tamamlama** (`lib/match-engine/run.ts` + `/api/matches/complete`): skor + olaylar + istatistik kaydı, puan tablosu güncellemesi (G/B/M, goller), CR ödülleri (galibiyet +4.000 / beraberlik +1.500 / mağlubiyet +500).
-- **Cron entegrasyonu**: `/api/cron/trigger-matches` artık vadesi gelen maçları gerçekten simüle edip tamamlıyor.
+- **Cron entegrasyonu**: `/api/cron/daily` vadesi gelen maçları simüle edip tamamlıyor (AI-vs-AI; insan maçları canlı oynanır, 3 gün gecikince otomatik).
 - **Maç sonucu sayfası** (`/match/[id]/result`): skor, MotM, dakika-dakika olay feed'i (GOL/SK/KRT/DEĞ/İY/MS), karşılaştırmalı istatistik barları. Lig fikstüründe biten maçlar buraya linkli.
 
 ### Tamamlanan Özellikler (Faz 4)

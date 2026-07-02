@@ -2,16 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { TRAINING_TYPES, FACILITY_COSTS, FACILITY_LABELS, FACILITY_MAX_LEVEL, facilityCoef, mentorEligibilityError, MENTOR_BONUS, MENTOR_MAX_MENTEES, type TrainingKind } from "@/lib/training";
+import { TRAINING_TYPES, FACILITY_COSTS, FACILITY_LABELS, FACILITY_MAX_LEVEL, DAILY_TRAINING_LIMIT, facilityCoef, mentorEligibilityError, MENTOR_BONUS, MENTOR_MAX_MENTEES, type TrainingKind } from "@/lib/training";
 import { POSITION_COLORS } from "@/lib/attributes";
-import { cn, formatCR } from "@/lib/utils";
+import { cn, formatCR, potentialStars } from "@/lib/utils";
 
 type P = { id: string; name: string; position: string; age: number; potential: number | null; overall: number; mentorId: string | null };
 type Gain = { key: string; label: string; amount: number; newValue: number; levelUp: boolean };
-
-function stars(potential: number | null): number {
-  return potential == null ? 0 : Math.max(1, Math.min(5, Math.round(potential / 4)));
-}
 
 export default function TrainingClient({
   players, trainedToday, remaining, facilityLevel, credits,
@@ -104,7 +100,7 @@ export default function TrainingClient({
         <div className="bg-panel border border-border-cm rounded-card divide-y divide-border-soft max-h-[520px] overflow-y-auto">
           {roster.map((p) => {
             const trained = done.includes(p.id);
-            const st = stars(p.potential);
+            const st = potentialStars(p.potential);
             const mentorName = p.mentorId ? byId.get(p.mentorId)?.name : null;
             return (
               <button key={p.id} disabled={trained} onClick={() => { setSel(p); setMentorErr(null); }}
@@ -130,8 +126,8 @@ export default function TrainingClient({
       <div className="space-y-4">
         <div className="bg-panel border border-border-cm rounded-card p-4">
           <div className="section-label mb-1">Günlük Hak</div>
-          <div className="font-display font-extrabold text-2xl">{left} / 3</div>
-          <p className="text-[11px] text-text-faint mt-1">Her gün 3 antrenman, oyuncu başına 1.</p>
+          <div className="font-display font-extrabold text-2xl">{left} / {DAILY_TRAINING_LIMIT}</div>
+          <p className="text-[11px] text-text-faint mt-1">Her gün {DAILY_TRAINING_LIMIT} antrenman, oyuncu başına 1.</p>
         </div>
 
         {/* Tesis yükseltme — kalıcı gelişim yatırımı */}

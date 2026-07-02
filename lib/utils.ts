@@ -13,6 +13,18 @@ export function formatCR(n: number): string {
   return `${formatNumber(n)} CR`;
 }
 
+// UTC gün başlangıcı — günlük limit/görev gibi "bugün" tanımlarının TEK kaynağı.
+export function utcDayStart(): Date {
+  const d = new Date();
+  d.setUTCHours(0, 0, 0, 0);
+  return d;
+}
+
+// UTC gün anahtarı (YYYY-MM-DD) — task_claims.day gibi gün bazlı kayıtlar için.
+export function utcDayKey(): string {
+  return utcDayStart().toISOString().slice(0, 10);
+}
+
 // Potansiyel (gizli 1-20) → 5 yıldız. TEK kural: bilinmiyor → 0, biliniyor → 1..5.
 export function potentialStars(potential: number | null | undefined): number {
   if (potential == null) return 0;
