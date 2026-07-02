@@ -8,6 +8,7 @@ import type { Player, Tactics, PlayerInstruction, TacticStyle, TacticAdvanced } 
 import { FORMATIONS, shortName } from "@/lib/formations";
 import { STYLE_PRESETS, ALL_STYLES } from "@/lib/tactic-styles";
 import SquadFitPanel from "./SquadFitPanel";
+import { useLineupEditor, LineupPitch } from "./LineupPitch";
 import { cn } from "@/lib/utils";
 
 // Oyuncu-bazlı talimat segmentleri
@@ -33,8 +34,6 @@ const ADV_SEGMENTS = {
   defensive_line: { label: "Savunma Hattı", options: [["low", "Alçak"], ["medium", "Orta"], ["high", "Yüksek"]] },
 } as const;
 
-interface DragItem { playerId: string; from: "bench" | number; }
-
 export default function TacticsBoard({ players, initial }: { players: Player[]; initial: Tactics | null }) {
   const [formation, setFormation] = useState(initial?.formation ?? "4-4-2");
   const [mentality, setMentality] = useState(initial?.mentality ?? "balanced");
@@ -51,10 +50,9 @@ export default function TacticsBoard({ players, initial }: { players: Player[]; 
   const [pitchSize, setPitchSize] = useState<"sm" | "md">("sm");
 
   const slots = FORMATIONS[formation];
-  const byId = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
-  const usedIds = useMemo(() => new Set(Object.values(lineup).filter(Boolean)), [lineup]);
-  const dragRef = useRef<DragItem | null>(null);
-  const dragBadgeRef = useRef<HTMLElement | null>(null);
+  // Ortak diziliş mantığı (FirstElevenEditor ile aynı çekirdek — LineupPitch.tsx)
+  const { byId, usedIds, benchPlayers, onDragStart, onDragEndCleanup, onDropSlot, onDropBench, autoFill } =
+    useLineupEditor({ players, lineup, setLineup });
 
   // Taktiği kaydet (hem otomatik hem manuel buton kullanır)
   async function saveTactics(): Promise<boolean> {
@@ -110,85 +108,6 @@ export default function TacticsBoard({ players, initial }: { players: Player[]; 
     setInstructions((prev) => ({ ...prev, [pid]: { ...INSTR_DEFAULT, ...prev[pid], [key]: val } }));
   }
 
-  function placeInSlot(slotIdx: number, playerId: string) {
-    setLineup((prev) => {
-      const next = { ...prev };
-      for (const k of Object.keys(next)) if (next[k] === playerId) delete next[k];
-      if (playerId) next[String(slotIdx)] = playerId; else delete next[String(slotIdx)];
-      return next;
-    });
-    setSubs((prev) => prev.filter((id) => id !== playerId));
-  }
-
-  function removeFromLineup(playerId: string) {
-    setLineup((prev) => {
-      const next = { ...prev };
-      for (const k of Object.keys(next)) if (next[k] === playerId) delete next[k];
-      return next;
-    });
-  }
-
-  // --- Drag & drop ---
-  // Sürükleme sırasında tarayıcının "link" hayaleti yerine yuvarlak numara rozeti göster.
-  function onDragStart(e: React.DragEvent, item: DragItem, player?: Player) {
-    dragRef.current = item;
-    if (player && e.dataTransfer) {
-      const color = POSITION_COLORS[player.position]?.color ?? "#10B981";
-      const label = player.shirt_number ?? overallRating(player, player.position);
-      const badge = document.createElement("div");
-      badge.textContent = String(label);
-      badge.style.cssText =
-        "position:fixed;top:-140px;left:-140px;width:38px;height:38px;border-radius:9999px;" +
-        "display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;" +
-        "color:#F1F5F9;background:#0C1524;border:2px solid " + color + ";" +
-        "box-shadow:0 2px 10px rgba(0,0,0,.5);z-index:9999;font-family:sans-serif;";
-      document.body.appendChild(badge);
-      dragBadgeRef.current = badge;
-      e.dataTransfer.setDragImage(badge, 19, 19);
-      e.dataTransfer.effectAllowed = "move";
-    }
-  }
-  function onDragEndCleanup() {
-    dragBadgeRef.current?.remove();
-    dragBadgeRef.current = null;
-  }
-  function onDropSlot(slotIdx: number) {
-    const item = dragRef.current;
-    if (!item) return;
-    const target = lineup[String(slotIdx)];
-    if (typeof item.from === "number") {
-      // Slot ↔ slot takas
-      setLineup((prev) => {
-        const next = { ...prev };
-        next[String(slotIdx)] = item.playerId;
-        if (target) next[String(item.from)] = target; else delete next[String(item.from)];
-        return next;
-      });
-    } else {
-      placeInSlot(slotIdx, item.playerId); // yedekten geldi
-    }
-    dragRef.current = null;
-  }
-  function onDropBench() {
-    const item = dragRef.current;
-    if (item && typeof item.from === "number") removeFromLineup(item.playerId);
-    dragRef.current = null;
-  }
-
-  function autoFill() {
-    // Pozisyona uygun, en yüksek rating'li 11 oyuncuyu otomatik yerleştir
-    const next: Record<string, string> = {};
-    const used = new Set<string>();
-    const pool = [...players].sort((a, b) => overallRating(b, b.position) - overallRating(a, a.position));
-    slots.forEach((slot, i) => {
-      let pick = pool.find((p) => !used.has(p.id) && p.position === slot.role);
-      if (!pick) pick = pool.find((p) => !used.has(p.id));
-      if (pick) { next[String(i)] = pick.id; used.add(pick.id); }
-    });
-    setLineup(next);
-  }
-
-  const benchPlayers = players.filter((p) => !usedIds.has(p.id));
   const pitchW = pitchSize === "sm" ? "max-w-[360px]" : "max-w-[460px]";
 
   const instrPlayer = instrFor ? byId.get(instrFor) : undefined;
@@ -226,7 +145,7 @@ export default function TacticsBoard({ players, initial }: { players: Player[]; 
             </button>
           ))}
         </div>
-        <button onClick={autoFill} className="w-full mt-3 py-2 rounded-lg text-xs font-semibold bg-blue-cm/15 border border-blue-cm text-blue-cm-bright hover:bg-blue-cm/25">
+        <button onClick={() => autoFill(slots)} className="w-full mt-3 py-2 rounded-lg text-xs font-semibold bg-blue-cm/15 border border-blue-cm text-blue-cm-bright hover:bg-blue-cm/25">
           Otomatik Diz
         </button>
         <button onClick={() => saveTactics()} disabled={saveState === "saving"}
@@ -248,48 +167,30 @@ export default function TacticsBoard({ players, initial }: { players: Player[]; 
           ))}
         </div>
 
-        <div className={cn("relative w-full aspect-[3/4] rounded-card overflow-hidden border border-border-cm", pitchW)}
-          style={{ background: "repeating-linear-gradient(180deg, #0f3d2a 0px, #0f3d2a 36px, #0d3525 36px, #0d3525 72px)" }}
-          onDragOver={(e) => e.preventDefault()} onDrop={onDropBench}>
-          <div className="absolute inset-3 border-2 border-white/20 rounded" />
-          <div className="absolute left-3 right-3 top-1/2 h-0.5 bg-white/20" />
-          <div className="absolute left-1/2 top-1/2 w-16 h-16 -translate-x-1/2 -translate-y-1/2 border-2 border-white/20 rounded-full" />
-          <div className="absolute left-1/4 right-1/4 top-3 h-9 border-2 border-t-0 border-white/20" />
-          <div className="absolute left-1/4 right-1/4 bottom-3 h-9 border-2 border-b-0 border-white/20" />
-
-          {slots.map((slot, i) => {
-            const pid = lineup[String(i)];
-            const player = pid ? byId.get(pid) : undefined;
-            const color = POSITION_COLORS[slot.role];
-            return (
-              <div key={i} className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-0.5"
-                style={{ left: `${slot.x}%`, top: `${slot.y}%` }}
-                onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.stopPropagation(); onDropSlot(i); }}>
-                <div
-                  draggable={!!player}
-                  onDragStart={(e) => player && onDragStart(e, { playerId: player.id, from: i }, player)}
-                  onDragEnd={onDragEndCleanup}
-                  className="w-9 h-9 rounded-full flex items-center justify-center text-[10px] font-bold border-2 cursor-grab active:cursor-grabbing"
-                  style={{ background: "#0C1524", borderColor: color.color, color: player ? "#F1F5F9" : color.color }}
-                  title={player ? `${player.name} · ${overallRating(player, player.position)}` : slot.role}>
-                  {player ? (player.shirt_number ?? overallRating(player, player.position)) : slot.role}
-                </div>
-                {player ? (
-                  <div className="flex items-center gap-0.5">
-                    <Link href={`/player/${player.id}`} draggable={false} className="text-[9px] text-white/90 bg-black/40 rounded px-1 hover:text-emerald max-w-[64px] truncate">
-                      {shortName(player.name)}
-                    </Link>
-                    <button onClick={() => setInstrFor(player.id)} title="Talimatlar"
-                      className="text-[10px] bg-black/40 rounded px-1 text-white/80 hover:text-emerald">⚙</button>
-                  </div>
-                ) : (
-                  <span className="text-[9px] text-white/40">{slot.role}</span>
-                )}
+        <LineupPitch
+          formation={formation}
+          lineup={lineup}
+          byId={byId}
+          className={pitchW}
+          slotSize="sm"
+          onDragStart={onDragStart}
+          onDragEndCleanup={onDragEndCleanup}
+          onDropSlot={onDropSlot}
+          onDropBench={onDropBench}
+          renderUnderSlot={(player, slot) =>
+            player ? (
+              <div className="flex items-center gap-0.5">
+                <Link href={`/player/${player.id}`} draggable={false} className="text-[9px] text-white/90 bg-black/40 rounded px-1 hover:text-emerald max-w-[64px] truncate">
+                  {shortName(player.name)}
+                </Link>
+                <button onClick={() => setInstrFor(player.id)} title="Talimatlar"
+                  className="text-[10px] bg-black/40 rounded px-1 text-white/80 hover:text-emerald">⚙</button>
               </div>
-            );
-          })}
-          <div className="absolute bottom-2 left-2 text-xs font-display font-bold px-2 py-1 rounded bg-black/40">{formation}</div>
-        </div>
+            ) : (
+              <span className="text-[9px] text-white/40">{slot.role}</span>
+            )
+          }
+        />
         <div className="mt-1.5 text-[11px] text-text-faint text-center">
           Seçili: {usedIds.size}/11 · Yedekten sahaya <b>sürükle</b>, isimle profile gir. Maça kadar serbest.
         </div>

@@ -53,7 +53,7 @@ export async function POST(req: Request) {
   });
   if (insErr) return NextResponse.json({ error: insErr.message }, { status: 400 });
 
-  await svc.from("users").update({ credits: gameUser.credits - REVEAL_ALL_COST }).eq("id", user.id);
+  await svc.rpc("add_credits", { uid: user.id, delta: -REVEAL_ALL_COST });
 
   return NextResponse.json({ ok: true });
 }

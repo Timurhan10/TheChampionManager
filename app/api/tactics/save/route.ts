@@ -2,8 +2,10 @@ import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { STYLE_PRESETS } from "@/lib/tactic-styles";
+import { FORMATIONS as FORMATION_DEFS } from "@/lib/formations";
 
-const FORMATIONS = ["4-4-2", "4-3-3", "4-2-3-1", "3-5-2", "5-3-2", "4-1-4-1"];
+// Geçerli formasyonlar TEK kaynaktan (lib/formations) — elle liste tekrarı yok.
+const FORMATIONS = Object.keys(FORMATION_DEFS);
 const MENTALITY = ["defensive", "balanced", "attacking"];
 const PRESSING = ["low", "medium", "high"];
 const TEMPO = ["slow", "normal", "fast"];

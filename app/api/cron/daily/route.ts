@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { runMatch } from "@/lib/match-engine/run";
-import { processSales } from "@/lib/sales";
 import { rotateFreeAgents } from "@/lib/free-agents";
 import { computeValue } from "@/lib/player-generator";
 import { notify } from "@/lib/notifications";
@@ -9,7 +8,8 @@ import { notify } from "@/lib/notifications";
 // Tek günlük cron orkestratörü (Vercel Hobby cron sayısı sınırı için birleştirildi):
 //  1) Vadesi gelen maçları simüle et
 //  2) Tamamlanan scout raporlarını işle
-//  3) Satılık oyuncuları işle (otomatik satış)
+//  3) Transfer pazarı rotasyonu
+//  4) Oyuncu değerlerini tazele
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
   if (secret) {
@@ -60,17 +60,12 @@ export async function GET(req: Request) {
     result.scoutsCompleted = completed;
   } catch (e: any) { result.scoutError = e.message; }
 
-  // 3) Satışlar
-  try {
-    result.sales = await processSales(svc);
-  } catch (e: any) { result.salesError = e.message; }
-
-  // 4) Transfer pazarı rotasyonu (12s gate; günlük taban)
+  // 3) Transfer pazarı rotasyonu (30dk gate)
   try {
     result.marketRefresh = await rotateFreeAgents(svc);
   } catch (e: any) { result.marketError = e.message; }
 
-  // 5) Oyuncu değerlerini tazele (insan takımları, ~günde bir — app_state gate).
+  // 4) Oyuncu değerlerini tazele (insan takımları, ~günde bir — app_state gate).
   //    Antrenman anında güncelliyor; bu adım maç reytingi/yaş gibi zamanla değişen
   //    etkilerin de değere yansımasını garanti eden günlük süpürme.
   try {

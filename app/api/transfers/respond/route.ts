@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { formatNumber } from "@/lib/utils";
 import { notify } from "@/lib/notifications";
 
 // Satıcı gelen teklifi kabul/red eder. Kabulde oyuncu + CR el değiştirir.
@@ -53,7 +54,7 @@ export async function POST(req: Request) {
     .eq("player_id", transfer.player_id).eq("status", "pending");
 
   await notify(svc, buyerTeam.user_id, "transfer_result", `Transfer tamamlandı: ${playerName}`,
-    `${transfer.offer_amount.toLocaleString("tr-TR")} CR karşılığında kadrona katıldı.`);
+    `${formatNumber(transfer.offer_amount)} CR karşılığında kadrona katıldı.`);
 
   return NextResponse.json({ ok: true });
 }

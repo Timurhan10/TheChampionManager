@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { CATEGORY_ATTRS, CATEGORY_LABELS, ATTR_LABELS, POSITION_COLORS, ratingColor, keyAttrs, type AttributeCategory } from "@/lib/attributes";
-import { formatNumber } from "@/lib/utils";
+import { formatNumber, potentialStars } from "@/lib/utils";
 
 export interface ComparePlayer {
   id: string;
@@ -153,7 +153,7 @@ function Row({ label, a, b }: { label: React.ReactNode; a: React.ReactNode; b: R
 }
 
 function Stars({ potential, align = "end" }: { potential: number | null; align?: "start" | "end" }) {
-  const filled = potential != null ? Math.max(0, Math.min(5, Math.round(potential / 4))) : 0;
+  const filled = potentialStars(potential);
   return (
     <div className={`flex gap-0.5 ${align === "start" ? "justify-start" : "justify-end"}`}>
       {Array.from({ length: 5 }).map((_, i) => (

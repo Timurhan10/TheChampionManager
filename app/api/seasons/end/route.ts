@@ -3,6 +3,7 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { generateSchedule, type MatchDay } from "@/lib/schedule-generator";
 import { generatePlayer } from "@/lib/player-generator";
 import { SEASON_CMP, SEASON_CR } from "@/lib/constants";
+import { formatNumber } from "@/lib/utils";
 import { notify } from "@/lib/notifications";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Position } from "@/types/game";
@@ -72,14 +73,11 @@ export async function POST(req: Request) {
     else if (i >= standings.length - 2) cr = SEASON_CR.bottom;
 
     await svc.rpc("add_credits", { uid: s.userId, delta: cr });
-    if (cmp) {
-      const { data: u } = await svc.from("users").select("cmp_points").eq("id", s.userId).single();
-      if (u) await svc.from("users").update({ cmp_points: u.cmp_points + cmp }).eq("id", s.userId);
-    }
+    if (cmp) await svc.rpc("add_cmp", { uid: s.userId, delta: cmp });
     await youthIntake(svc, s.team_id);
     await notify(svc, s.userId, "season_end",
       `Sezon ${league.season_number} bitti — ${i + 1}. sıra`,
-      `+${cr.toLocaleString("tr-TR")} CR sezon ödülü${cmp ? `, +${cmp} CMP` : ""}.`);
+      `+${formatNumber(cr)} CR sezon ödülü${cmp ? `, +${cmp} CMP` : ""}.`);
   }
 
   // Puan tablosunu sıfırla

@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { runTraining, TRAINING_TYPES, MENTOR_BONUS, type TrainingKind } from "@/lib/training";
+import { runTraining, TRAINING_TYPES, MENTOR_BONUS, DAILY_TRAINING_LIMIT } from "@/lib/training";
+import type { TrainingKind } from "@/lib/training";
 import { computeValue } from "@/lib/player-generator";
+import { utcDayStart } from "@/lib/utils";
 import type { Player } from "@/types/game";
 
-const DAILY_LIMIT = 3;
+const DAILY_LIMIT = DAILY_TRAINING_LIMIT;
 
 export async function POST(req: Request) {
   const supabase = createClient();
@@ -24,8 +26,7 @@ export async function POST(req: Request) {
   if (!player || (player as any).team_id !== team.id) return NextResponse.json({ error: "Bu oyuncu sana ait değil." }, { status: 403 });
 
   // Günlük limit (UTC gün): takım 3, oyuncu 1
-  const dayStart = new Date(); dayStart.setUTCHours(0, 0, 0, 0);
-  const iso = dayStart.toISOString();
+  const iso = utcDayStart().toISOString();
   const { data: todays } = await svc.from("training_sessions").select("player_id").eq("team_id", team.id).gte("created_at", iso);
   const usedToday = (todays ?? []).length;
   if (usedToday >= DAILY_LIMIT) return NextResponse.json({ error: `Bugünlük antrenman hakkın bitti (${DAILY_LIMIT}/${DAILY_LIMIT}).` }, { status: 400 });

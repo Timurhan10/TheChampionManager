@@ -19,7 +19,7 @@ export async function POST() {
   }
 
   await svc.from("teams").update({ scout_level: (team.scout_level ?? 1) + 1 }).eq("id", team.id);
-  await svc.from("users").update({ cmp_points: gameUser.cmp_points - SCOUT_UPGRADE_CMP }).eq("id", user.id);
+  await svc.rpc("add_cmp", { uid: user.id, delta: -SCOUT_UPGRADE_CMP });
 
   return NextResponse.json({ ok: true, level: (team.scout_level ?? 1) + 1 });
 }

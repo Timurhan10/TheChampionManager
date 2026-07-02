@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { FACILITY_COSTS, FACILITY_MAX_LEVEL } from "@/lib/training";
+import { formatNumber } from "@/lib/utils";
 
 // Antrenman tesisini bir seviye yükseltir (CR harcayarak).
 // Seviye antrenman kazancını kalıcı çarpar (facilityCoef) — CR gideri + gelişim yatırımı.
@@ -22,7 +23,7 @@ export async function POST() {
 
   const { data: gameUser } = await svc.from("users").select("credits").eq("id", user.id).single();
   if (!gameUser) return NextResponse.json({ error: "Kullanıcı bulunamadı." }, { status: 400 });
-  if (gameUser.credits < cost) return NextResponse.json({ error: `Yetersiz CR (gereken: ${cost.toLocaleString("tr-TR")}).` }, { status: 400 });
+  if (gameUser.credits < cost) return NextResponse.json({ error: `Yetersiz CR (gereken: ${formatNumber(cost)}).` }, { status: 400 });
 
   // Önce seviye koşullu artırılır (çift tıklama iki kez yükseltemesin), sonra ücret düşülür.
   const { data: upd, error } = await svc.from("teams")

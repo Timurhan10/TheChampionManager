@@ -2,7 +2,6 @@
 // Master bağlam: tüm attribute'lar 8-12 random, potansiyel yaşa göre, değer hesabı.
 
 import {
-  ALL_ATTRS,
   ALL_OUTFIELD_ATTRS,
   GOALKEEPING_ATTRS,
   MENTAL_ATTRS,
@@ -157,18 +156,6 @@ function applyPositionBias(
   for (const key of keyAttrs(position)) {
     bump(attributes, key, b, max);
   }
-}
-
-// Ortalama rating — sadece attribute alanlarını hesaba katar (kaleci attr'ları dahil).
-// Player nesnesi de doğrudan geçirilebilir; attribute olmayan alanlar göz ardı edilir.
-export function averageRating(source: Partial<Record<AttributeKey, number | null>>): number {
-  const vals: number[] = [];
-  for (const key of ALL_ATTRS) {
-    const v = source[key];
-    if (typeof v === "number") vals.push(v);
-  }
-  if (vals.length === 0) return 0;
-  return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
 }
 
 // Pozisyon-ağırlıklı genel puan: pozisyonun anahtar özellikleri daha çok ağırlık yapar.

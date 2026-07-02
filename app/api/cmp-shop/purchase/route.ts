@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { generatePlayer } from "@/lib/player-generator";
 import { ALL_ATTRS } from "@/lib/attributes";
+import { formatNumber } from "@/lib/utils";
 import { notify } from "@/lib/notifications";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Position } from "@/types/game";
@@ -49,8 +50,8 @@ export async function POST(req: Request) {
   switch (item.item_type) {
     case "cr_bonus": {
       const amount = Number(data.amount ?? 0);
-      await svc.from("users").update({ credits: gameUser.credits + amount }).eq("id", user.id);
-      resultText = `${amount.toLocaleString("tr-TR")} CR eklendi.`;
+      await svc.rpc("add_credits", { uid: user.id, delta: amount });
+      resultText = `${formatNumber(amount)} CR eklendi.`;
       break;
     }
     case "scout_boost": {
@@ -96,7 +97,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Bilinmeyen ürün tipi." }, { status: 400 });
   }
 
-  await svc.from("users").update({ cmp_points: gameUser.cmp_points - item.cmp_cost }).eq("id", user.id);
+  await svc.rpc("add_cmp", { uid: user.id, delta: -item.cmp_cost });
   await svc.from("cmp_purchases").insert({ user_id: user.id, item_id: item.id, cmp_spent: item.cmp_cost });
   await notify(svc, user.id, "cmp_purchase", `Satın alındı: ${item.name}`, resultText);
 
