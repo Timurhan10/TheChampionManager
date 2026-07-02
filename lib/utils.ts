@@ -13,6 +13,12 @@ export function formatCR(n: number): string {
   return `${formatNumber(n)} CR`;
 }
 
+// Potansiyel (gizli 1-20) → 5 yıldız. TEK kural: bilinmiyor → 0, biliniyor → 1..5.
+export function potentialStars(potential: number | null | undefined): number {
+  if (potential == null) return 0;
+  return Math.max(1, Math.min(5, Math.round(potential / 4)));
+}
+
 // İki harf/üç harf takım rozeti üretici (ör. "Anadolu FK" -> "AFK")
 export function teamBadge(name: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean);

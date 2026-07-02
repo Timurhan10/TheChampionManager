@@ -3,10 +3,10 @@
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { overallRating } from "@/lib/player-generator";
-import { POSITION_COLORS, ratingColor } from "@/lib/attributes";
+import { POSITION_COLORS, ratingColor, keyAttrs, ATTR_LABELS } from "@/lib/attributes";
 import { FORMATIONS, shortName } from "@/lib/formations";
 import type { Player, Tactics, LineupPreset } from "@/types/game";
-import { cn } from "@/lib/utils";
+import { cn, potentialStars } from "@/lib/utils";
 
 interface DragItem { playerId: string; from: "bench" | number; }
 type Selected = { type: "slot"; idx: number } | { type: "bench"; id: string } | null;
@@ -24,6 +24,7 @@ export default function FirstElevenEditor({ players, initial }: { players: Playe
   const [namingOpen, setNamingOpen] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const [err, setErr] = useState<string | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null); // Sahadaki 11 listesinde açık özellik satırı
 
   // Taşınan taktik alanları (İlk 11 ekranı değiştirmez ama kayıt/aktifleştirmede korunur)
   const carry = useRef({
@@ -250,6 +251,60 @@ export default function FirstElevenEditor({ players, initial }: { players: Playe
         </div>
         <div className="mt-2 text-[11px] text-text-faint text-center">
           Seçili: {usedIds.size}/11 · <b>Dokun</b>: oyuncuyu/slotu seç, sonra hedefe dokun (yer değiştir). Masaüstünde <b>sürükle</b> de olur.
+        </div>
+      </div>
+
+      {/* Sahadaki 11 — oyuncular + özellikleri (satıra dokun → pozisyona göre önemli özellikler) */}
+      <div>
+        <div className="section-label mb-1.5">Sahadaki 11 ({usedIds.size}/11)</div>
+        <div className="bg-panel border border-border-cm rounded-card divide-y divide-border-soft overflow-hidden">
+          {slots.map((slot, i) => {
+            const pid = lineup[String(i)];
+            const player = pid ? byId.get(pid) : undefined;
+            const color = POSITION_COLORS[slot.role];
+            if (!player) {
+              return (
+                <div key={i} className="flex items-center gap-2.5 px-3 py-2 text-sm text-text-faint">
+                  <span className="w-6 h-6 rounded text-[10px] font-bold flex items-center justify-center shrink-0" style={{ background: color.bg, color: color.color }}>{slot.role}</span>
+                  Boş slot — sahadan veya yedeklerden oyuncu seç
+                </div>
+              );
+            }
+            const rating = overallRating(player, player.position);
+            const st = potentialStars(player.potential ?? null);
+            const expanded = detailId === player.id;
+            return (
+              <div key={i}>
+                <button onClick={() => setDetailId(expanded ? null : player.id)}
+                  className={cn("w-full flex items-center gap-2.5 px-3 py-2 text-left", expanded ? "bg-panel-inset/60" : "hover:bg-panel-inset/40")}>
+                  <span className="w-6 h-6 rounded text-[10px] font-bold flex items-center justify-center shrink-0" style={{ background: POSITION_COLORS[player.position].bg, color: POSITION_COLORS[player.position].color }}>{player.position}</span>
+                  <span className="text-sm truncate flex-1">{player.name}</span>
+                  <span className="text-[11px] text-text-faint shrink-0">{player.age}y</span>
+                  <span className="text-amber text-xs tracking-tight shrink-0">{"★".repeat(st)}<span className="text-text-faint">{"★".repeat(5 - st)}</span></span>
+                  <span className="font-display font-extrabold text-[15px] w-7 text-center shrink-0" style={{ color: ratingColor(rating) }}>{rating}</span>
+                  <span className={cn("text-text-faint transition-transform shrink-0", expanded && "rotate-180")}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                  </span>
+                </button>
+                {expanded && (
+                  <div className="px-3 pb-2.5 pt-1 grid grid-cols-2 gap-x-5 gap-y-1 bg-panel-inset/30">
+                    {keyAttrs(player.position).map((k) => {
+                      const v = (player as any)[k];
+                      return (
+                        <div key={k} className="flex items-center justify-between text-[12px]">
+                          <span className="text-text-muted">{ATTR_LABELS[k]}</span>
+                          <span className="font-bold tabular-nums" style={{ color: typeof v === "number" ? ratingColor(v) : undefined }}>{typeof v === "number" ? v : "—"}</span>
+                        </div>
+                      );
+                    })}
+                    <Link href={`/player/${player.id}`} className="col-span-2 text-center text-[11px] text-text-faint hover:text-emerald mt-1">
+                      Tüm profil →
+                    </Link>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 
