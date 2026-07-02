@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 // Menü grupları: açık/kapalı durumu localStorage'da saklanır; aktif sayfanın grubu otomatik açılır.
@@ -47,14 +47,25 @@ export default function Sidebar({ teamName, username, isAdmin = false, open = fa
     ...(activeGroup ? { [activeGroup]: true } : {}),
   }));
 
-  // Kayıtlı durumu yükle (aktif grup her zaman açık kalır)
+  // Kayıtlı durumu yükle. Aktif grup DAYATILMAZ: kullanıcı kapatıp yenilediyse
+  // kapalı kalır (initializer'daki açılış sadece kayıt yokken ilk izlenim).
   useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(LS_KEY) ?? "{}");
-      setOpenGroups((prev) => ({ ...prev, ...saved, ...(activeGroup ? { [activeGroup]: true } : {}) }));
+      setOpenGroups((prev) => ({ ...prev, ...saved }));
     } catch { /* yok say */ }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Sayfa DEĞİŞİNCE yeni sayfanın grubunu otomatik aç (Sidebar persistent layout'ta
+  // mount kaldığı için mount-only effect navigasyonu görmez). Mount'ta koşmaz ki
+  // yenilemede kayıtlı kapalı durum ezilmesin.
+  const prevGroup = useRef(activeGroup);
+  useEffect(() => {
+    if (activeGroup && activeGroup !== prevGroup.current) {
+      setOpenGroups((prev) => (prev[activeGroup] ? prev : { ...prev, [activeGroup]: true }));
+    }
+    prevGroup.current = activeGroup;
+  }, [activeGroup]);
 
   function toggleGroup(key: string) {
     setOpenGroups((prev) => {

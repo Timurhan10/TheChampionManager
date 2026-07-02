@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Saira, IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
 
@@ -19,6 +19,12 @@ const plex = IBM_Plex_Sans({
 export const metadata: Metadata = {
   title: "The Champion Manager",
   description: "Tarayıcı tabanlı online futbol menajerlik oyunu",
+};
+
+// Mobil tarayıcıda sayfanın cihaz genişliğine göre ölçeklenmesi
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({
